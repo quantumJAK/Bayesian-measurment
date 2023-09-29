@@ -10,6 +10,7 @@ kanban-plugin: basic
 
 ## Developing
 
+- [ ] [[Implement RLC circuit simulation]]
 
 
 ## Testing
