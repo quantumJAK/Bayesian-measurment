@@ -6,8 +6,6 @@ kanban-plugin: basic
 
 ## To do
 
-- [ ] [[Implement constant capacitance model]]
-- [ ] [[Review on constant capacitance model]]
 
 
 ## Developing
