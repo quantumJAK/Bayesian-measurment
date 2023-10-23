@@ -1,16 +1,16 @@
 ## Machine learning aided readout
-#### 1. [Enhancing Qubit Readout with Autoencoders](Papers%20review/Enhancing%20Qubit%20Readout%20with%20Autoencoders.md) **
+#### 1. [Enhancing Qubit Readout with Autoencoders](Papers%20review/Enhancing%20Qubit%20Readout%20with%20Autoencoders.md)  **
 https://arxiv.org/abs/2212.00080
 
-*
+They use the I/Q formalism and provide a simple explanation of it. Attempt to classify I/Q using ML.
 #### 2. [Robust and fast post-processing of single-shot spin qubit detection events with a neural network](Papers%20review/Robust%20and%20fast%20post-processing%20of%20single-shot%20spin%20qubit%20detection%20events%20with%20a%20neural%20network.md) 
 https://www.nature.com/articles/s41598-021-95562-x
 
 Uses neural network to boos Enzerman readout
-#### 3. [Machine learning for discriminating quantum measurement trajectories and improving readout](Papers%20review/Machine%20learning%20for%20discriminating%20quantum%20measurement%20trajectories%20and%20improving%20readout.md)**
+#### 3. [Machine learning for discriminating quantum measurement trajectories and improving readout](Papers%20review/Machine%20learning%20for%20discriminating%20quantum%20measurement%20trajectories%20and%20improving%20readout.md)
 https://arxiv.org/abs/1411.4994.pdf
 
-*short description*
+Trajcetories in time in the I/Q plane 
 #### 4. [Machine learning assisted readout of trapped-ion qubits](Papers%20review/Machine%20learning%20assisted%20readout%20of%20trapped-ion%20qubits.md)
 https://arxiv.org/abs/1804.07718.pdf
 
