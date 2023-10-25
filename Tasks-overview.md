@@ -6,9 +6,10 @@ kanban-plugin: basic
 
 ## To do
 
-- [ ] [[Bayes updates and quantum mechanics]]
-- [ ] [[Estimation theory]]
-- [ ] [[Look at the experimental data]]
+- [ ] [[Experimental-data]]
+- [ ] [[Literature-study]]
+- [ ] [[Estimation-theory]]
+- [ ] [[Quantum-simulator]]
 
 
 ## Developing
@@ -17,7 +18,7 @@ kanban-plugin: basic
 
 ## Testing
 
-- [ ] [[Implement RLC circuit simulation]]
+- [ ] [[Implement-RLC-circuit-simulation]]
 
 
 ## Done
