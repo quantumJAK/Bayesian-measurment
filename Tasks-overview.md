@@ -6,10 +6,8 @@ kanban-plugin: basic
 
 ## To do
 
-- [ ] [[Experimental-data]]
-- [ ] [[Literature-study]]
-- [ ] [[Estimation-theory]]
-- [ ] [[Quantum-simulator]]
+- [ ] [[Error-estimation]]
+- [ ] [[heuristic-methods]]
 
 
 ## Developing
