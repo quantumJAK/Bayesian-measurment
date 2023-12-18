@@ -8,6 +8,7 @@ kanban-plugin: basic
 
 - [ ] [[Error-estimation]]
 - [ ] [[heuristic-methods]]
+- [ ] [[Simulation_issues]]
 
 
 ## Developing

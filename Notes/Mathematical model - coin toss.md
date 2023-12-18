@@ -10,7 +10,7 @@ We use the simple [[Model-of-experiement]] that is parametrised by the:
 - Number of shots $N$
 - Correlation time of the environment $\tau_c$, 
 - Fluctuation amplitude $\sigma$ 
-- Average field $B_0$ 
+- Average field $B_0$ (typically set to 0)
 We use the [[model-of-the-fluctuations]] that is given by O-U noise. We start with the initial condition. 
 
 ##### Method
