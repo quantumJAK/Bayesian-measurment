@@ -23,12 +23,13 @@ class game():
         estimation_length = env.estimation_length
         self.rewards = np.zeros((episodes, estimation_length))
         self.stds = np.zeros((episodes, estimation_length))
-        self.actions = np.zeros((episodes, estimation_length))
+        self.actions = np.zeros((2,episodes, estimation_length))
         self.mus = np.zeros((episodes, estimation_length))
         self.oms = np.zeros((episodes, estimation_length))
         self.play(episodes, env, policy, model, **kwargs)
     
     def play(self, episodes, env, policy = None, model = None, **kwargs):
+        single_action = False
         for episode in range(0, episodes):
             done = False
             k = 0
@@ -36,15 +37,23 @@ class game():
             while not done:
                 if model:
                     action,_ = model.predict(n_state)
+                    
                 elif policy:
                     action = policy(n_state, **kwargs)
+                    single_action = True
                 else:
                     action = env.action_space.sample()
 
                 n_state, reward, done, _, info = env.step(action)
-                self.mus[episode,k], self.stds[episode,k], _ = n_state
+                self.mus[episode,k], self.stds[episode,k] = n_state
                 self.rewards[episode,k] = reward
-                self.actions[episode,k] = action
+            
+                #check if action is a array or a in
+                try: 
+                    self.actions[0, episode,k] = action[0]
+                    self.actions[1, episode,k] = action[1]
+                except IndexError:
+                    self.actions[episode,k] = action
                 self.oms[episode,k] = info['om']
                 k = k+1
 
@@ -176,6 +185,17 @@ def policy_random_p(state, *args, **kwargs):
     pcheck = x[2]/norm
 
     return rng.choice([0,1,2], p=[pflip,pest,pcheck])
+
+
+def policy_random_p2(state, *args, **kwargs):
+    rng = kwargs["rng_est"]
+    x = kwargs["x"]
+    norm = sum(x)
+    pflip = x[0]/norm
+    pest =  x[1]/norm
+
+    return rng.choice([0,1], p=[pflip,pest])
+
 
 def policy_random(state, *args, **kwargs):
     rng = kwargs["rng_est"]
