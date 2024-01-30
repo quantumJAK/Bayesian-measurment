@@ -69,7 +69,7 @@ class EstimationEnv(Env):
         self.estimaiton_length0 = length
         self.estimation_length = length
 
-        self.om0 = om0
+        self.om = om0
         self.sigma = sigma
         self.tc = tc
         self.initial_std = initial_std
@@ -81,10 +81,10 @@ class EstimationEnv(Env):
      
 
 
-        self.freq_drift = self.rng_field.normal(0, sigma)
-        self.weigths = get_initial_p(self.freq_drift, initial_std, self.freq_grid)
-        self.state = [get_estimate(self.weigths,self.freq_grid)+self.om0, get_std(self.weigths, self.freq_grid)]
-        
+        initial_error = self.rng_field.normal(0, initial_std)
+        self.weigths = get_initial_p(np.abs(self.om)+initial_error, initial_std, self.freq_grid)
+        self.state = [get_estimate(self.weigths,self.freq_grid), get_std(self.weigths, self.freq_grid)]
+
     def step(self, action):
         # Apply action
         # 0 - not estimate
@@ -104,7 +104,7 @@ class EstimationEnv(Env):
                 b = 1
             else:
                 t = 1/mu/2 # change np.pi in numerator to have different angle    
-                b = self.rng_shot.binomial(1, 1/2+1/2*np.cos(2*np.pi*(self.om0+self.freq_drift)*t))
+                b = self.rng_shot.binomial(1, 1/2+1/2*np.cos(2*np.pi*self.om*t))
             if b==0:
                 reward = 1
             else:
@@ -112,24 +112,25 @@ class EstimationEnv(Env):
 
             #self.weigths = update_p(b, 2*np.pi*self.freq_grid*t, self.weigths)
         elif action == 1:
-            self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths,  c=self.c_used,
-                                    om0 = self.om0, rng_shot = self.rng_shot,)
+            self.weigths = estimate(self.om, self.freq_grid, self.weigths,  c=self.c_used,
+                                    om0 = 0, rng_shot = self.rng_shot,)
         else:
             if mu>0:
-                self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths, 
-                                    om0 = self.om0, rng_shot = self.rng_shot, t=1/mu/2)
+                self.weigths = estimate(self.om, self.freq_grid, self.weigths, 
+                                    om0 = 0, rng_shot = self.rng_shot, t=1/mu/2)
 
         #diffuse
+ 
         self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
 
         #update knowladge
-        mu = get_estimate(self.weigths, self.freq_grid) + self.om0  #get_estimate of field
+        mu = get_estimate(self.weigths, self.freq_grid)  #get_estimate of field
         std = get_std(self.weigths, self.freq_grid)                 #get_std of field
         self.state[0] = mu
         self.state[1] = std
         #self.state[2] += 1
         #update frequency
-        self.freq_drift = next_B(self.freq_drift, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
+        self.om = next_B(self.om, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
 
         self.estimation_length -= 1
         # Check if estimation is done
@@ -141,7 +142,7 @@ class EstimationEnv(Env):
  
         # Set placeholder for info
         truncated = False #?
-        info = {"om":self.om0 + self.freq_drift}
+        info = {"om":self.om }
 
         # Return step information
         return  np.array(self.state).astype(np.float32), reward, done, truncated, info
@@ -153,13 +154,13 @@ class EstimationEnv(Env):
     def reset(self,seed=None, options=None):
         self.estimation_length =  self.estimaiton_length0 
 
-        self.freq_drift = self.rng_field.normal(0, self.sigma)
-        self.weigths = get_initial_p(np.abs(self.freq_drift), self.initial_std, self.freq_grid)
+        initial_error = self.rng_field.normal(0, self.initial_std)
+        self.weigths = get_initial_p(np.abs(self.om)+initial_error, self.initial_std, self.freq_grid)
 
-        mu = get_estimate(self.weigths, self.freq_grid) + self.om0
+        mu = get_estimate(self.weigths, self.freq_grid) 
         std = get_std(self.weigths, self.freq_grid)
         self.state = [mu, std]
-        info = {"om":self.om0+self.freq_drift}
+        info = {"om":self.om}
         return np.array(self.state).astype(np.float32), info
 
 
@@ -171,10 +172,11 @@ class NoCheck(EstimationEnv):
 
 
 class FlexibleEstimationTime(EstimationEnv):
-    def __init__(self, length, tc, om0, sigma, initial_std, c=4, seed_field=None, seed_shot = None):
+    def __init__(self, length, tc, om0, sigma, initial_std, c=4, 
+                 seed_field=None, seed_shot = None, penalty = -1, max_time = 20):
         super().__init__(length, tc, om0, sigma, initial_std, c, seed_field, seed_shot)    
-        self.action_space = MultiDiscrete(np.array([2,30]))
-
+        self.action_space = MultiDiscrete(np.array([2,max_time]))
+        self.penalty = penalty
     def step(self, action):
         # Apply action
         # 0 - not estimate
@@ -194,30 +196,30 @@ class FlexibleEstimationTime(EstimationEnv):
                 b = 1
             else:
                 t = 1/mu/2 # change np.pi in numerator to have different angle    
-                b = self.rng_shot.binomial(1, 1/2+1/2*np.cos(2*np.pi*(self.om0+self.freq_drift)*t))
+                b = self.rng_shot.binomial(1, 1/2+1/2*np.cos(2*np.pi*(self.om)*t))
             if b==0:
                 reward = 1
             else:
-                reward = -1
+                reward = self.penalty
 
             #self.weigths = update_p(b, 2*np.pi*self.freq_grid*t, self.weigths)
         else:
             #self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths,  c=self.c_used,
             #                        om0 = self.om0, rng_shot = self.rng_shot,t = action[1]/mu/4)
-            self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths,  c=self.c_used,
-                                    om0 = self.om0, rng_shot = self.rng_shot,t = action[1]*1e-3)
+            self.weigths = estimate(self.om, self.freq_grid, self.weigths,  c=self.c_used,
+                                    om0 = 0, rng_shot = self.rng_shot,t = action[1]*1e-3)
 
         #diffuse
         self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
-
+        plt.plot(self.weigths)
         #update knowladge
-        mu = get_estimate(self.weigths, self.freq_grid) + self.om0  #get_estimate of field
+        mu = get_estimate(self.weigths, self.freq_grid)     #get_estimate of field
         std = get_std(self.weigths, self.freq_grid)                 #get_std of field
         self.state[0] = mu
         self.state[1] = std
         #self.state[2] += 1
         #update frequency
-        self.freq_drift = next_B(self.freq_drift, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
+        self.om = next_B(self.om, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
 
         self.estimation_length -= 1
         # Check if estimation is done
@@ -229,7 +231,7 @@ class FlexibleEstimationTime(EstimationEnv):
  
         # Set placeholder for info
         truncated = False #?
-        info = {"om":self.om0 + self.freq_drift}
+        info = {"om":self.om}
 
         # Return step information
         return  np.array(self.state).astype(np.float32), reward, done, truncated, info
@@ -245,7 +247,7 @@ def import_data(results):
 
 def get_outcome(rewards, actions):
     outcome = rewards + actions*2
-    outcome[outcome==-1] = 0
+    outcome[outcome<0] = 0
     return outcome
 
 
@@ -331,9 +333,10 @@ def analyse_few_games(results, string):
 
 def analyse_few_games2(results, string):
     rewards, actions, oms, mus, std = import_data(results)
-    rewards[rewards==-1] = 50  #0 - success, #-1 -failure, times...
-    rewards[rewards==1] = -50
-    rewards[rewards==0] = actions[1][rewards==0]
+    rewards_to_plot = np.zeros(rewards.shape)
+    rewards_to_plot[rewards<0] = 50  #0 - success, #-1 -failure, times...
+    rewards_to_plot[rewards==1] = -50
+    rewards_to_plot[rewards==0] = actions[1][rewards==0]
     
 
     #est_prob = np.sum(outcome==2,axis=1)/len(outcome[0,:])
@@ -353,7 +356,7 @@ def analyse_few_games2(results, string):
     cmap = "Spectral"
 
     #colors = ["b","r","k","w"]
-    d = axs[0].pcolormesh(rewards, cmap=cmap)
+    d = axs[0].pcolormesh(rewards_to_plot, cmap=cmap)
     axs[0].grid(True)
     cb = plt.colorbar(d, ax = axs[0], orientation="vertical")
     cb.set_label('Action')
@@ -412,11 +415,12 @@ def analyse_few_games2(results, string):
     plt.savefig("figures/games"+str(string)+".png")
 
 def analyse_decisions(results, string):
-    plt.figure()
-    rewards, actions, oms, mus, std = import_data(results)
-    outcome = get_outcome(rewards, actions)
-    if outcome.shape[0] == 2:
-        outcome = outcome[0]
+    rewards, actions, oms, mus, std = import_data(results)    
+    outcome = np.zeros(mus.shape)
+    outcome[rewards==1] = 1 
+    outcome[rewards<0] = 0
+    outcome[rewards==0] = 2
+    
     import matplotlib.colors as colors
     cmap = colors.ListedColormap(['b','r','w',"k"])
     bounds = [0,1,2,3]
@@ -507,8 +511,118 @@ def analyse_time(results, string):
         if n == len(bins[1])-1:
             break
         else:
-            filtr = (x>bin0) * (x < bins[1][n+1])
+            filtr = (y>bin0) * (y < bins[1][n+1])
             times.append(c[filtr])
     ax[3].clear()
     ax[3].violinplot(times, showmeans=True)
     
+
+
+
+
+
+
+class EstimationEnv_old(Env):
+    def __init__(self, length, tc, om0, sigma, initial_std, c=4, seed_field=None, seed_shot = None):
+        # Actions we can take, down, stay, up
+        self.seed_shot = seed_shot
+        self.seed_field = seed_field
+        self.rng_shot = np.random.default_rng(seed_shot)
+        self.rng_field = np.random.default_rng(seed_field)
+        self.estimaiton_length0 = length
+        self.estimation_length = length
+
+        self.om0 = om0
+        self.sigma = sigma
+        self.tc = tc
+        self.initial_std = initial_std
+        self.c_used = c
+
+        self.action_space = Discrete(3)
+        self.observation_space = Box(low = 0, high = 200, shape = (2,),dtype=np.float32) #Implement observation space!
+        self.freq_grid = np.linspace(0,100,401)
+     
+
+
+        self.freq_drift = self.rng_field.normal(0, sigma)
+        self.weigths = get_initial_p(self.freq_drift, initial_std, self.freq_grid)
+        plt.plot(self.weigths)
+        self.state = [get_estimate(self.weigths,self.freq_grid)+self.om0, get_std(self.weigths, self.freq_grid)]
+        print(self.state)
+
+    def step(self, action):
+        # Apply action
+        # 0 - not estimate
+        # 1 - estimate 
+        # 2 - nothing
+
+        reward = 0
+        b = None
+        
+        
+        mu = self.state[0]
+        std = self.state[1]
+ 
+
+        if action == 0:
+            if mu==0:
+                b = 1
+            else:
+                t = 1/mu/2 # change np.pi in numerator to have different angle    
+                b = self.rng_shot.binomial(1, 1/2+1/2*np.cos(2*np.pi*(self.om0+self.freq_drift)*t))
+            if b==0:
+                reward = 1
+            else:
+                reward = -1
+
+            #self.weigths = update_p(b, 2*np.pi*self.freq_grid*t, self.weigths)
+        elif action == 1:
+            self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths,  c=self.c_used,
+                                    om0 = self.om0, rng_shot = self.rng_shot,)
+        else:
+            if mu>0:
+                self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths, 
+                                    om0 = self.om0, rng_shot = self.rng_shot, t=1/mu/2)
+
+        #diffuse
+        self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
+
+        #update knowladge
+        mu = get_estimate(self.weigths, self.freq_grid) + self.om0  #get_estimate of field
+        std = get_std(self.weigths, self.freq_grid)                 #get_std of field
+        self.state[0] = mu
+        self.state[1] = std
+        #self.state[2] += 1
+        #update frequency
+        self.freq_drift = next_B(self.freq_drift, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
+
+        self.estimation_length -= 1
+        # Check if estimation is done
+        if self.estimation_length <= 0: 
+            done = True
+        else:
+            done = False
+        
+ 
+        # Set placeholder for info
+        truncated = False #?
+        info = {"om":self.om0 + self.freq_drift}
+
+        # Return step information
+        return  np.array(self.state).astype(np.float32), reward, done, truncated, info
+
+    def render(self):
+        # Implement viz
+        pass
+    
+    def reset(self,seed=None, options=None):
+        self.estimation_length =  self.estimaiton_length0 
+
+        self.freq_drift = self.rng_field.normal(0, self.sigma)
+        self.weigths = get_initial_p(np.abs(self.freq_drift), self.initial_std, self.freq_grid)
+
+        mu = get_estimate(self.weigths, self.freq_grid) + self.om0
+        std = get_std(self.weigths, self.freq_grid)
+        self.state = [mu, std]
+        info = {"om":self.om0+self.freq_drift}
+        return np.array(self.state).astype(np.float32), info
