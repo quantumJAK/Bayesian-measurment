@@ -72,6 +72,23 @@ class Telegraph_Noise():
             self.x = -self.x    
         return self.x
 
+
+class OU_noise():
+    def __init__(self, sigma, tc, x0=None):
+        self.tc = tc
+        self.sigma = sigma
+        if x0 is None:
+            self.x = np.random.normal(0,sigma)
+        else:
+            self.x = x0
+    
+        
+    def update(self, dt):
+        self.x = self.x*np.exp(-dt/self.tc) + np.sqrt(1-np.exp(-2*dt/self.tc))*np.random.normal(0,self.sigma)
+        return self.x
+
+
+
 class Over_f_noise():
     def __init__(self, n_telegraphs, S1 ,sigma_couplings, ommax, ommin, x0=None):
         self.n_telegraphs = n_telegraphs
@@ -223,7 +240,8 @@ class FlexibleEstimationTime(EstimationEnv):
         if over_f:
             self.noise = Over_f_noise(n_telegraphs=10, S1= 1, sigma_couplings=0.25, ommax=10, ommin = 1/length, x0=None)
 
-    
+        else:
+            self.nosie = OU_noise(std = sigma, tc =tc, x0 = None)
 
     def step(self, action):
         # Apply action
