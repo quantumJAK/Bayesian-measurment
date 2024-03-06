@@ -223,6 +223,8 @@ class FlexibleEstimationTime(EstimationEnv):
         if over_f:
             self.noise = Over_f_noise(n_telegraphs=10, S1= 1, sigma_couplings=0.25, ommax=10, ommin = 1/length, x0=None)
 
+    
+
     def step(self, action):
         # Apply action
         # 0 - not estimate
