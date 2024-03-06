@@ -57,6 +57,48 @@ def difuse_pdf(pdf, dt, sig, tc, grid):
 
 
 
+class Telegraph_Noise():
+    def __init__(self, sigma, gamma, x0=None):
+        self.gamma = gamma
+        self.sigma = sigma
+        if x0 is None:
+            self.x = self.sigma*(2*np.random.randint(0, 1)-1)
+
+
+    def update(self, dt):
+        # update telegraph noise
+        switch_probability = 1/2 + 1/2*np.exp(-2*self.gamma*dt) 
+        if np.random.rand() < switch_probability:
+            self.x = -self.x    
+        return self.x
+
+class Over_f_noise():
+    def __init__(self, n_telegraphs, S1 ,sigma_couplings, ommax, ommin, x0=None):
+        self.n_telegraphs = n_telegraphs
+        self.S1 = S1
+        self.sigma_couplings = sigma_couplings
+        self.ommax = ommax
+        self.ommin = ommin
+        self.spawn_telegraphs(n_telegraphs, sigma_couplings, ommax, ommin, S1)
+        if x0 is None:
+            self.x = np.sum([telegraph.x for telegraph in self.telegraphs])
+        else:
+            self.x = x0
+        
+
+    def spawn_telegraphs(self, n_telegraphs, sigma_couplings, ommax, ommin, S1):
+        uni = np.random.uniform(0,1,size = n_telegraphs)
+        gammas = self.ommax*np.exp(-np.log(self.ommax/self.ommin)*uni)
+        sigmas = S1*np.random.normal(1,sigma_couplings, size=n_telegraphs)/np.sqrt(n_telegraphs)
+        self.telegraphs = []
+        for n, gamma in enumerate(gammas):
+            self.telegraphs.append(Telegraph_Noise
+                                   (sigmas[n], gamma))
+        
+    def update(self, dt):
+        for telegraph in self.telegraphs:
+            self.x += telegraph.update(dt)
+        return self.x
         
 
 class EstimationEnv(Env):
@@ -173,10 +215,14 @@ class NoCheck(EstimationEnv):
 
 class FlexibleEstimationTime(EstimationEnv):
     def __init__(self, length, tc, om0, sigma, initial_std, c=4, 
-                 seed_field=None, seed_shot = None, penalty = -1, max_time = 20):
+                 seed_field=None, seed_shot = None, penalty = -1, max_time = 20, over_f = True):
         super().__init__(length, tc, om0, sigma, initial_std, c, seed_field, seed_shot)    
         self.action_space = MultiDiscrete(np.array([2,max_time]))
         self.penalty = penalty
+        self.over_f = over_f
+        if over_f:
+            self.noise = Over_f_noise(n_telegraphs=10, S1= 1, sigma_couplings=0.25, ommax=10, ommin = 1/length, x0=None)
+
     def step(self, action):
         # Apply action
         # 0 - not estimate
@@ -211,7 +257,6 @@ class FlexibleEstimationTime(EstimationEnv):
 
         #diffuse
         self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
-        plt.plot(self.weigths)
         #update knowladge
         mu = get_estimate(self.weigths, self.freq_grid)     #get_estimate of field
         std = get_std(self.weigths, self.freq_grid)                 #get_std of field
@@ -219,7 +264,11 @@ class FlexibleEstimationTime(EstimationEnv):
         self.state[1] = std
         #self.state[2] += 1
         #update frequency
-        self.om = next_B(self.om, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
+        self.noise.update(1)
+        if self.over_f:
+            self.om = self.noise.x
+        else:
+            self.om = next_B(self.om, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
 
         self.estimation_length -= 1
         # Check if estimation is done
@@ -236,6 +285,63 @@ class FlexibleEstimationTime(EstimationEnv):
         # Return step information
         return  np.array(self.state).astype(np.float32), reward, done, truncated, info
 #analyser
+
+
+class ConstantFlexibleEstimationTime(EstimationEnv):
+    def __init__(self, length, tc, om0, sigma, initial_std,
+                 seed_field=None, seed_shot = None,time_grid = 20):
+        super().__init__(length, tc, om0, sigma, initial_std, c, seed_field, seed_shot)    
+        self.action_space = MultiDiscrete(np.array([max_time]))
+        
+    def step(self, action):
+        # Apply action
+        # 0 - not estimate
+        # 1 - estimate 
+        # 2 - nothing
+
+        reward = 0
+        b = None
+
+        
+        mu = self.state[0]
+        std = self.state[1]
+ 
+
+        self.weigths = estimate(self.om, self.freq_grid, self.weigths,  c=self.c_used,
+                                om0 = 0, rng_shot = self.rng_shot,t = action*1e-3)
+
+        #diffuse
+        self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
+        #update knowladge
+        mu = get_estimate(self.weigths, self.freq_grid)     #get_estimate of field
+        std = get_std(self.weigths, self.freq_grid)                 #get_std of field
+        self.state[0] = mu
+        self.state[1] = std
+        #self.state[2] += 1
+        #update frequency
+        self.noise.update(1)
+        if self.over_f:
+            self.om = self.noise.x
+        else:
+            self.om = next_B(self.om, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
+
+        self.estimation_length -= 1
+        # Check if estimation is done
+        if self.estimation_length <= 0: 
+            done = True
+        else:
+            done = False
+        
+ 
+        # Set placeholder for info
+        truncated = False #?
+        info = {"om":self.om}
+
+        # Return step information
+        return  np.array(self.state).astype(np.float32), reward, done, truncated, info
+
+
+
 
 def import_data(results):
     rewards = results.rewards
