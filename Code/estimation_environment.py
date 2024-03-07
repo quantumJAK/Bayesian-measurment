@@ -17,9 +17,10 @@ def update_p(d, phi, p0):
         return p0
     return p/np.sum(p)
 
+min_std = 0.01
 def get_std(probs, grid):
     if 0 > np.sum(probs*grid**2)-np.sum(probs*grid)**2:
-        return self.min_std 
+        return min_std 
     else:
         return np.sqrt(np.sum(probs*grid**2)-np.sum(probs*grid)**2)
 
@@ -81,13 +82,14 @@ class OU_noise():
             self.x = np.random.normal(0,sigma)
         else:
             self.x = x0
-    
+        self.x0 = self.x
         
     def update(self, dt):
         self.x = self.x*np.exp(-dt/self.tc) + np.sqrt(1-np.exp(-2*dt/self.tc))*np.random.normal(0,self.sigma)
         return self.x
 
-
+    def reset(self):
+        self.x = self.x0
 
 class Over_f_noise():
     def __init__(self, n_telegraphs, S1 ,sigma_couplings, ommax, ommin, x0=None):
@@ -135,8 +137,8 @@ class EstimationEnv(Env):
         self.c_used = c
 
         self.action_space = Discrete(3)
-        self.observation_space = Box(low = 0, high = 200, shape = (2,),dtype=np.float32) #Implement observation space!
-        self.freq_grid = np.linspace(0,100,401)
+        self.observation_space = Box(low = 0, high = 80, shape = (2,),dtype=np.float32) #Implement observation space!
+        self.freq_grid = np.linspace(0.1,80,401) 
      
 
 
@@ -156,6 +158,7 @@ class EstimationEnv(Env):
         
         mu = self.state[0]
         std = self.state[1]
+        
  
 
         if action == 0:
@@ -181,7 +184,7 @@ class EstimationEnv(Env):
         #diffuse
  
         self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
-
+        
         #update knowladge
         mu = get_estimate(self.weigths, self.freq_grid)  #get_estimate of field
         std = get_std(self.weigths, self.freq_grid)                 #get_std of field
@@ -218,7 +221,9 @@ class EstimationEnv(Env):
 
         mu = get_estimate(self.weigths, self.freq_grid) 
         std = get_std(self.weigths, self.freq_grid)
-        self.state = [mu, std]
+        self.state[0] = mu
+        self.state[1] = std
+
         info = {"om":self.om}
         return np.array(self.state).astype(np.float32), info
 
@@ -232,16 +237,19 @@ class NoCheck(EstimationEnv):
 
 class FlexibleEstimationTime(EstimationEnv):
     def __init__(self, length, tc, om0, sigma, initial_std, c=4, 
-                 seed_field=None, seed_shot = None, penalty = -1, max_time = 20, over_f = True):
+                 seed_field=None, seed_shot = None, penalty = -1, max_time = 100, over_f = True,
+                 time_step = 1):
         super().__init__(length, tc, om0, sigma, initial_std, c, seed_field, seed_shot)    
-        self.action_space = MultiDiscrete(np.array([2,max_time]))
+        self.action_space = MultiDiscrete(np.array([2,int(max_time/time_step)]))
         self.penalty = penalty
         self.over_f = over_f
+        self.om0 = om0
+        self.time_step = time_step
         if over_f:
-            self.noise = Over_f_noise(n_telegraphs=10, S1= 1, sigma_couplings=0.25, ommax=10, ommin = 1/length, x0=None)
+            self.noise = Over_f_noise(n_telegraphs=10, S1= 1, sigma_couplings=0.25, ommax=10, ommin = 1/length, x0=om0)
 
         else:
-            self.nosie = OU_noise(std = sigma, tc =tc, x0 = None)
+            self.noise = OU_noise(sigma = sigma, tc =tc, x0 = om0)
 
     def step(self, action):
         # Apply action
@@ -273,15 +281,18 @@ class FlexibleEstimationTime(EstimationEnv):
             #self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths,  c=self.c_used,
             #                        om0 = self.om0, rng_shot = self.rng_shot,t = action[1]/mu/4)
             self.weigths = estimate(self.om, self.freq_grid, self.weigths,  c=self.c_used,
-                                    om0 = 0, rng_shot = self.rng_shot,t = action[1]*1e-3)
+                                    om0 = 0, rng_shot = self.rng_shot,t = action[1]*self.time_step*1e-3)
 
         #diffuse
         self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
         #update knowladge
+        plt.figure()
+        plt.plot(self.weigths)
         mu = get_estimate(self.weigths, self.freq_grid)     #get_estimate of field
         std = get_std(self.weigths, self.freq_grid)                 #get_std of field
         self.state[0] = mu
         self.state[1] = std
+
         #self.state[2] += 1
         #update frequency
         self.noise.update(1)
@@ -304,8 +315,13 @@ class FlexibleEstimationTime(EstimationEnv):
 
         # Return step information
         return  np.array(self.state).astype(np.float32), reward, done, truncated, info
-#analyser
 
+    def reset(self,seed=None, options=None):
+        self.om = self.om0
+        state, info = super().reset()
+        self.noise.reset()
+        
+        return state, info
 
 class ConstantFlexibleEstimationTime(EstimationEnv):
     def __init__(self, length, tc, om0, sigma, initial_std,
@@ -645,110 +661,4 @@ def analyse_time(results, string):
 
 
 
-
-
-
-class EstimationEnv_old(Env):
-    def __init__(self, length, tc, om0, sigma, initial_std, c=4, seed_field=None, seed_shot = None):
-        # Actions we can take, down, stay, up
-        self.seed_shot = seed_shot
-        self.seed_field = seed_field
-        self.rng_shot = np.random.default_rng(seed_shot)
-        self.rng_field = np.random.default_rng(seed_field)
-        self.estimaiton_length0 = length
-        self.estimation_length = length
-
-        self.om0 = om0
-        self.sigma = sigma
-        self.tc = tc
-        self.initial_std = initial_std
-        self.c_used = c
-
-        self.action_space = Discrete(3)
-        self.observation_space = Box(low = 0, high = 200, shape = (2,),dtype=np.float32) #Implement observation space!
-        self.freq_grid = np.linspace(0,100,401)
-     
-
-
-        self.freq_drift = self.rng_field.normal(0, sigma)
-        self.weigths = get_initial_p(self.freq_drift, initial_std, self.freq_grid)
-        plt.plot(self.weigths)
-        self.state = [get_estimate(self.weigths,self.freq_grid)+self.om0, get_std(self.weigths, self.freq_grid)]
-        print(self.state)
-
-    def step(self, action):
-        # Apply action
-        # 0 - not estimate
-        # 1 - estimate 
-        # 2 - nothing
-
-        reward = 0
-        b = None
-        
-        
-        mu = self.state[0]
-        std = self.state[1]
- 
-
-        if action == 0:
-            if mu==0:
-                b = 1
-            else:
-                t = 1/mu/2 # change np.pi in numerator to have different angle    
-                b = self.rng_shot.binomial(1, 1/2+1/2*np.cos(2*np.pi*(self.om0+self.freq_drift)*t))
-            if b==0:
-                reward = 1
-            else:
-                reward = -1
-
-            #self.weigths = update_p(b, 2*np.pi*self.freq_grid*t, self.weigths)
-        elif action == 1:
-            self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths,  c=self.c_used,
-                                    om0 = self.om0, rng_shot = self.rng_shot,)
-        else:
-            if mu>0:
-                self.weigths = estimate(self.freq_drift, self.freq_grid, self.weigths, 
-                                    om0 = self.om0, rng_shot = self.rng_shot, t=1/mu/2)
-
-        #diffuse
-        self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
-
-        #update knowladge
-        mu = get_estimate(self.weigths, self.freq_grid) + self.om0  #get_estimate of field
-        std = get_std(self.weigths, self.freq_grid)                 #get_std of field
-        self.state[0] = mu
-        self.state[1] = std
-        #self.state[2] += 1
-        #update frequency
-        self.freq_drift = next_B(self.freq_drift, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
-
-        self.estimation_length -= 1
-        # Check if estimation is done
-        if self.estimation_length <= 0: 
-            done = True
-        else:
-            done = False
-        
- 
-        # Set placeholder for info
-        truncated = False #?
-        info = {"om":self.om0 + self.freq_drift}
-
-        # Return step information
-        return  np.array(self.state).astype(np.float32), reward, done, truncated, info
-
-    def render(self):
-        # Implement viz
-        pass
     
-    def reset(self,seed=None, options=None):
-        self.estimation_length =  self.estimaiton_length0 
-
-        self.freq_drift = self.rng_field.normal(0, self.sigma)
-        self.weigths = get_initial_p(np.abs(self.freq_drift), self.initial_std, self.freq_grid)
-
-        mu = get_estimate(self.weigths, self.freq_grid) + self.om0
-        std = get_std(self.weigths, self.freq_grid)
-        self.state = [mu, std]
-        info = {"om":self.om0+self.freq_drift}
-        return np.array(self.state).astype(np.float32), info
