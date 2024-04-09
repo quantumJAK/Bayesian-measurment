@@ -34,6 +34,7 @@ def estimate(freq_drift, grid, pdf_weights, c = 4,  om0=0, t = None, rng_shot = 
     return pdf_weights
             
 def get_estimate(probs, grid):
+    return np.sum(probs*grid)
     ind = np.argmax(probs)
     return grid[ind]
 
@@ -78,18 +79,22 @@ class OU_noise():
     def __init__(self, sigma, tc, x0=None):
         self.tc = tc
         self.sigma = sigma
+        self.x0 = x0
         if x0 is None:
-            self.x = np.random.normal(0,sigma)
+            self.x = np.abs(np.random.normal(0,sigma))
         else:
             self.x = x0
-        self.x0 = self.x
+  
         
     def update(self, dt):
         self.x = self.x*np.exp(-dt/self.tc) + np.sqrt(1-np.exp(-2*dt/self.tc))*np.random.normal(0,self.sigma)
         return self.x
 
     def reset(self):
-        self.x = self.x0
+        if self.x0 is None:
+            self.x = np.abs(np.random.normal(0,self.sigma))
+        else:
+            self.x = self.x0
 
 class Over_f_noise():
     def __init__(self, n_telegraphs, S1 ,sigma_couplings, ommax, ommin, x0=None):
@@ -129,22 +134,22 @@ class EstimationEnv(Env):
         self.rng_field = np.random.default_rng(seed_field)
         self.estimaiton_length0 = length
         self.estimation_length = length
-
-        self.om = om0
         self.sigma = sigma
         self.tc = tc
         self.initial_std = initial_std
         self.c_used = c
 
         self.action_space = Discrete(3)
-        self.observation_space = Box(low = 0, high = 80, shape = (2,),dtype=np.float32) #Implement observation space!
-        self.freq_grid = np.linspace(0.1,80,401) 
-     
+        self.observation_space = Box(low = 0, high = 1, shape = (101,),dtype=np.float32) #Implement observation space!
+        self.freq_grid = np.linspace(0.1,100,101) 
+
+    
 
 
         initial_error = self.rng_field.normal(0, initial_std)
-        self.weigths = get_initial_p(np.abs(self.om)+initial_error, initial_std, self.freq_grid)
-        self.state = [get_estimate(self.weigths,self.freq_grid), get_std(self.weigths, self.freq_grid)]
+        #initial_error = 0
+        self.weigths = get_initial_p(np.abs(om0)+initial_error, initial_std, self.freq_grid)
+        self.state = self.weigths
 
     def step(self, action):
         # Apply action
@@ -186,10 +191,15 @@ class EstimationEnv(Env):
         self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
         
         #update knowladge
+        
         mu = get_estimate(self.weigths, self.freq_grid)  #get_estimate of field
         std = get_std(self.weigths, self.freq_grid)                 #get_std of field
+        self.state = self.weigths
+        
+        '''
         self.state[0] = mu
         self.state[1] = std
+        '''
         #self.state[2] += 1
         #update frequency
         self.om = next_B(self.om, dt = 1, sig = self.sigma, tc = self.tc, rng = self.rng_field)
@@ -217,12 +227,12 @@ class EstimationEnv(Env):
         self.estimation_length =  self.estimaiton_length0 
 
         initial_error = self.rng_field.normal(0, self.initial_std)
+        #initial_error = 0
         self.weigths = get_initial_p(np.abs(self.om)+initial_error, self.initial_std, self.freq_grid)
 
         mu = get_estimate(self.weigths, self.freq_grid) 
         std = get_std(self.weigths, self.freq_grid)
-        self.state[0] = mu
-        self.state[1] = std
+        self.state = self.weigths
 
         info = {"om":self.om}
         return np.array(self.state).astype(np.float32), info
@@ -239,8 +249,6 @@ class FlexibleEstimationTime(EstimationEnv):
     def __init__(self, length, tc, om0, sigma, initial_std, c=4, 
                  seed_field=None, seed_shot = None, penalty = -1, max_time = 100, over_f = True,
                  time_step = 1):
-        super().__init__(length, tc, om0, sigma, initial_std, c, seed_field, seed_shot)    
-        self.action_space = MultiDiscrete(np.array([2,int(max_time/time_step)]))
         self.penalty = penalty
         self.over_f = over_f
         self.om0 = om0
@@ -250,6 +258,10 @@ class FlexibleEstimationTime(EstimationEnv):
 
         else:
             self.noise = OU_noise(sigma = sigma, tc =tc, x0 = om0)
+        self.om = self.noise.x
+        super().__init__(length, tc, self.om, sigma, initial_std, c, seed_field, seed_shot)    
+        self.action_space = MultiDiscrete(np.array([2,int(max_time/time_step)]))
+     
 
     def step(self, action):
         # Apply action
@@ -259,10 +271,12 @@ class FlexibleEstimationTime(EstimationEnv):
 
         reward = 0
         b = None
+        #plt.figure()
+        #plt.plot(self.freq_grid, self.weigths)
 
         
-        mu = self.state[0]
-        std = self.state[1]
+        mu = get_estimate(self.weigths, self.freq_grid)
+        std = get_std(self.weigths, self.freq_grid)
  
 
         if action[0] == 0:
@@ -282,16 +296,23 @@ class FlexibleEstimationTime(EstimationEnv):
             #                        om0 = self.om0, rng_shot = self.rng_shot,t = action[1]/mu/4)
             self.weigths = estimate(self.om, self.freq_grid, self.weigths,  c=self.c_used,
                                     om0 = 0, rng_shot = self.rng_shot,t = action[1]*self.time_step*1e-3)
-
+        plot_weights = False
+        if plot_weights:
+            plt.figure()
+            plt.plot(self.freq_grid, self.weigths)
         #diffuse
+            plt.ylim(0,np.max(self.weigths))
         self.weigths = difuse_pdf(self.weigths, dt = 1, sig = self.sigma, tc = self.tc, grid = self.freq_grid)
         #update knowladge
-        plt.figure()
-        plt.plot(self.weigths)
+        
         mu = get_estimate(self.weigths, self.freq_grid)     #get_estimate of field
         std = get_std(self.weigths, self.freq_grid)                 #get_std of field
-        self.state[0] = mu
-        self.state[1] = std
+        self.state = self.weigths
+        if plot_weights:
+            plt.plot(self.freq_grid, self.weigths, "r--")
+            plt.vlines(np.abs(self.om),0,1,"k")
+
+            plt.vlines(mu,0,1,"green")
 
         #self.state[2] += 1
         #update frequency
@@ -317,9 +338,11 @@ class FlexibleEstimationTime(EstimationEnv):
         return  np.array(self.state).astype(np.float32), reward, done, truncated, info
 
     def reset(self,seed=None, options=None):
-        self.om = self.om0
-        state, info = super().reset()
+
         self.noise.reset()
+        self.om = self.noise.x
+        state, info = super().reset()
+
         
         return state, info
 
@@ -476,10 +499,13 @@ def analyse_few_games(results, string):
 def analyse_few_games2(results, string):
     rewards, actions, oms, mus, std = import_data(results)
     rewards_to_plot = np.zeros(rewards.shape)
-    rewards_to_plot[rewards<0] = 50  #0 - success, #-1 -failure, times...
-    rewards_to_plot[rewards==1] = -50
-    rewards_to_plot[rewards==0] = actions[1][rewards==0]
-    
+    times = np.zeros(rewards.shape)
+    rewards_to_plot[rewards<0] = -1  #0 - success, #-1 -failure, times...
+    rewards_to_plot[rewards==1] = 1
+    times[rewards==0] = actions[1][rewards==0]
+    maxtime = np.max(times)
+    rewards_to_plot[rewards_to_plot==0] = None
+    times[times==0] = None
 
     #est_prob = np.sum(outcome==2,axis=1)/len(outcome[0,:])
     #check_prob = np.sum(outcome==4,axis=1)/len(outcome[0,:])
@@ -495,12 +521,14 @@ def analyse_few_games2(results, string):
 
     #plot rewards with -1 -> blue, 0-> red, and >1 -> colormap
     
-    cmap = "Spectral"
+    cmap_rewards = "bwr"
+    cmap_times = "binary"
 
     #colors = ["b","r","k","w"]
-    d = axs[0].pcolormesh(rewards_to_plot, cmap=cmap)
+    d = axs[0].pcolormesh(rewards_to_plot, cmap=cmap_rewards)
+    d2 = axs[0].pcolormesh(times, cmap=cmap_times,vmax = maxtime*2)
     axs[0].grid(True)
-    cb = plt.colorbar(d, ax = axs[0], orientation="vertical")
+    cb = plt.colorbar(d2, ax = axs[0], orientation="vertical")
     cb.set_label('Action')
     cb.set_ticks([])
     plt.tight_layout()
@@ -555,6 +583,107 @@ def analyse_few_games2(results, string):
     plt.title(string)
     axs[1].grid(True)
     plt.savefig("figures/games"+str(string)+".png")
+
+def analyse_few_games3(results, string):
+    rewards, actions, oms, mus, std = import_data(results)
+    rewards_to_plot = np.zeros(rewards.shape)
+    times = np.zeros(rewards.shape)
+    rewards_to_plot[rewards<0] = -1  #0 - success, #-1 -failure, times...
+    rewards_to_plot[rewards==1] = 1
+    times[rewards==0] = actions[1][rewards==0]
+    maxtime = np.max(times)
+    rewards_to_plot[rewards_to_plot==0] = None
+    times[times==0] = None
+
+    #est_prob = np.sum(outcome==2,axis=1)/len(outcome[0,:])
+    #check_prob = np.sum(outcome==4,axis=1)/len(outcome[0,:])
+    #tot_reward = np.sum(rewards,axis=1)
+    
+    #  Plot
+    fig, axs = plt.subplots(6, 1, figsize=(6, 6), sharex=True)
+    plt.subplots_adjust(hspace=0.0)
+    from matplotlib import colors
+    #axs[0].pcolormesh(actions, cmap='binary')
+    #axs[0].set_title('Actions')
+    # use the cmap which has blue for negative and red for positive values
+
+    #plot rewards with -1 -> blue, 0-> red, and >1 -> colormap
+    for k in range(6):
+        axs[k].set_yticks([0,1,2,3])
+
+
+    cmap_rewards = "bwr"
+    cmap_times = "binary"
+
+    #colors = ["b","r","k","w"]
+    d = axs[0].pcolormesh(rewards_to_plot, cmap=cmap_rewards)
+    d2 = axs[0].pcolormesh(times, cmap=cmap_times,vmax = maxtime*2)
+    axs[0].grid(True)
+    cb = plt.colorbar(d2, ax = axs[0], orientation="vertical")
+    cb.set_label('Est. time')
+    cb.set_ticks([])
+    plt.tight_layout()
+    axs[0].grid(True)
+    axs[0].set_ylabel("Repetitions")
+    #mu
+    dmu = mus
+    
+    dmu_plot = axs[1].pcolormesh(dmu, cmap="Reds", vmin=0, vmax=np.max(np.abs(dmu)))
+
+    cb = plt.colorbar(dmu_plot, ax = axs[1], orientation="vertical")
+    cb.set_label('Est. $\omega$')
+    plt.tight_layout()
+    axs[1].grid(True)
+    axs[1].set_ylabel("Repetitions")
+
+
+    #Ustd
+    sig_plot = axs[2].pcolormesh(std, cmap="Reds", vmin=0, vmax=np.max(std))
+
+    cb = plt.colorbar(sig_plot, ax = axs[2], orientation="vertical")
+    cb.set_label('Uncertainty')
+    plt.tight_layout()
+    plt.grid()
+    axs[2].grid(True)
+    axs[2].set_ylabel("Repetitions")
+
+
+    #real om
+    dmu = oms 
+    dmu_plot = axs[3].pcolormesh(dmu, cmap="bwr", vmin=-np.max(np.abs(dmu)), vmax=np.max(np.abs(dmu)))
+
+    cb = plt.colorbar(dmu_plot, ax = axs[3], orientation="vertical")
+    cb.set_label('Real $\omega$')
+    axs[3].grid(True)
+    plt.tight_layout()
+    plt.grid()
+    axs[3].set_ylabel("Repetitions")
+
+    #error
+    dom = oms - mus
+    om_plot = axs[4].pcolormesh(dom, cmap="bwr", vmin=-np.max(np.abs(dom)), vmax=np.max(np.abs(dom)))
+
+    cb = plt.colorbar(om_plot, ax = axs[4], orientation="vertical")
+    cb.set_label('Est. error')
+    plt.tight_layout()
+    axs[4].grid(True)
+    plt.ylabel("Repetitions")
+
+    #error
+    dom = np.abs(oms) - np.abs(mus)
+    om_plot = axs[5].pcolormesh(dom, cmap="bwr", vmin=-np.max(np.abs(dom)), vmax=np.max(np.abs(dom)))
+
+    cb = plt.colorbar(om_plot, ax = axs[5], orientation="vertical")
+    cb.set_label('Est. error')
+    plt.tight_layout()
+    axs[5].grid(True)
+    plt.savefig("figures/games"+str(string)+".png")
+    plt.xlabel("Consequtive shots (time)")
+    plt.ylabel("Repetitions")
+
+
+
+
 
 def analyse_decisions(results, string):
     rewards, actions, oms, mus, std = import_data(results)    

@@ -1,5 +1,20 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
+min_std = 0.01
+
+def get_std(probs, grid):
+    if 0 > np.sum(probs*grid**2)-np.sum(probs*grid)**2:
+        return min_std 
+    else:
+        return np.sqrt(np.sum(probs*grid**2)-np.sum(probs*grid)**2)
+    
+
+            
+def get_estimate(probs, grid):
+    return np.sum(probs*grid)
+    ind = np.argmax(probs)
+    return grid[ind]
 
 
 class game():
@@ -20,6 +35,7 @@ class game():
         env.reset()
         env.rng_shot = np.random.default_rng(env.seed_shot)
         env.rng_field = np.random.default_rng(env.seed_field)
+        self.freq_grid = env.freq_grid
         estimation_length = env.estimation_length
         self.rewards = np.zeros((episodes, estimation_length))
         self.stds = np.zeros((episodes, estimation_length))
@@ -45,7 +61,11 @@ class game():
                     action = env.action_space.sample()
 
                 n_state, reward, done, _, info = env.step(action)
-                self.mus[episode,k], self.stds[episode,k] = n_state
+                weights = n_state
+                print(self.freq_grid)
+                plt.plot(weights)
+                self.mus[episode,k] = get_estimate(weights, self.freq_grid)
+                self.stds[episode,k] = get_std(weights, self.freq_grid)
                 self.rewards[episode,k] = reward
             
                 #check if action is a array or a in
