@@ -23,6 +23,7 @@ importlib.reload(utl)
 
 noiseou = nois.OU_noise(sigma=2, gamma=1/1e4/2)
 logdir ="./ppo_bayes_tensorboard/"
+print("dupa")
 om0 = 10
 cs = 4
 penalty = [-0.001,-200]  #-1,-10,-100 are ok
