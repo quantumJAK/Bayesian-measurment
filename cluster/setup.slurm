@@ -16,12 +16,14 @@
 module load Python/3.9.5-GCCcore-10.3.0
 
 # Source the Python virtual environment
-source $HOME/user_guide_tutorials/first_python_job/python_test_venv/bin/activate
+export CWD=$(pwd)
+
+source $CWD/python_test_venv/bin/activate
 echo "[$SHELL] #### Starting Python test"
 echo "[$SHELL] ## This is $SLURM_JOB_USER on $HOSTNAME and this job has the ID $SLURM_JOB_ID"
 
 # get the current working directory
-export CWD=$(pwd)
+
 echo "[$SHELL] ## current working directory: "$CWD
 
 # Run the file
