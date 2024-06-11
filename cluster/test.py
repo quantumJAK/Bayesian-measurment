@@ -9,19 +9,11 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 
 
-import numpy as np
-import optimisation as opt
-import moments_backend as est
-import importlib
-import noise as nois
-import utils as utl
-importlib.reload(opt)
-importlib.reload(est)
-importlib.reload(nois)
-importlib.reload(utl)
+
 
 
 print("dupa")
+'''
 noiseou = nois.OU_noise(sigma=2, gamma=1/1e4/2)
 logdir ="./ppo_bayes_tensorboard/"
 om0 = 10
@@ -51,4 +43,4 @@ for p in penalty:
                 verbose=1, tensorboard_log="./ppo_bayes_tensorboard/", gamma = 1)
 
     model.learn(total_timesteps=5000000, tb_log_name="PPO",callback=eval_callback )
-
+'''
