@@ -1,4 +1,0 @@
-- Start flipping pixels, with working dot,
-- solve SE in 1D
-- double dot <x>, <x^2>, b
-- 

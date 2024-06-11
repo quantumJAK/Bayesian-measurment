@@ -35,11 +35,10 @@ class game():
         env.reset()
         env.rng_shot = np.random.default_rng(env.seed_shot)
         env.rng_field = np.random.default_rng(env.seed_field)
-        self.freq_grid = env.freq_grid
         estimation_length = env.estimation_length
         self.rewards = np.zeros((episodes, estimation_length))
         self.stds = np.zeros((episodes, estimation_length))
-        self.actions = np.zeros((2,episodes, estimation_length))
+        self.actions = np.zeros((episodes, estimation_length))
         self.mus = np.zeros((episodes, estimation_length))
         self.oms = np.zeros((episodes, estimation_length))
         self.play(episodes, env, policy, model, **kwargs)
@@ -55,25 +54,20 @@ class game():
                     action,_ = model.predict(n_state)
                     
                 elif policy:
-                    action = policy(n_state, **kwargs)
+                    action = policy(k,n_state, **kwargs)
                     single_action = True
                 else:
                     action = env.action_space.sample()
 
                 n_state, reward, done, _, info = env.step(action)
-                weights = n_state
-                print(self.freq_grid)
-                plt.plot(weights)
-                self.mus[episode,k] = get_estimate(weights, self.freq_grid)
-                self.stds[episode,k] = get_std(weights, self.freq_grid)
+                
+                self.mus[episode,k] = n_state[0]
+                self.stds[episode,k] = n_state[1]
                 self.rewards[episode,k] = reward
             
                 #check if action is a array or a in
-                try: 
-                    self.actions[0, episode,k] = action[0]
-                    self.actions[1, episode,k] = action[1]
-                except IndexError:
-                    self.actions[episode,k] = action
+                
+                self.actions[episode,k] = action
                 self.oms[episode,k] = info['om']
                 k = k+1
 
