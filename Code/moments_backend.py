@@ -20,7 +20,25 @@ def update_p(x, mu, std, t):
 def get_gauss(x, state):
     return 1/np.sqrt(2*np.pi*state[1]**2)*np.exp(-(x-state[0])**2/(2*state[1]**2))
 
+class Filter():
+    def __init__(self, N):
+        self.N = N
+        self.raw = []
+        self.filtered = []
 
+    def update(self, mu):
+        self.raw.append(mu)
+        self.filtered.append(mu)
+        return mu
+    
+class Moving_average_filter(Filter):
+    def update(self, mu):
+        self.raw.append(mu)
+        if len(self.raw)<self.N:
+            self.filtered.append(np.average(self.raw))
+        else:
+            self.filtered.append(self.filtered[-1] + (self.raw[-1] - self.raw[-self.N])/self.N)
+        return self.filtered[-1]
 
 def diffuse_state(dt, mu, std, noise):
     mu = noise.update_mu(dt, mu, std)
@@ -44,7 +62,8 @@ class Moments_estimation(Env):
                  penalty = -1, 
                  max_time = 100,
                  time_step = 1,
-                 min_time = 0):
+                 min_time = 0, 
+                 filter = None):
         
         self.penalty = penalty
         self.om0 = om0
@@ -55,7 +74,7 @@ class Moments_estimation(Env):
         self.noise.set_x(self.init_error*np.random.normal(0,1))
         self.noise.cs = cs
         self.om = self.noise.x + om0
-        
+        self.mu_history = []
 
         self.seed_shot = seed_shot
         self.seed_field = seed_field
@@ -63,7 +82,7 @@ class Moments_estimation(Env):
         self.rng_field = np.random.default_rng(seed_field)
         self.estimaiton_length0 = length
         self.estimation_length = length
-
+        self.filter = filter
         self.observation_space = Box(low = np.array([0,0],dtype=np.float64), high = np.array([20,1],dtype=np.float64), shape = (2,),dtype=np.float64) 
         self.action_space = Discrete(int((max_time-min_time)/time_step)+1)
         self.state = np.array([self.om0,self.init_error])
@@ -107,9 +126,14 @@ class Moments_estimation(Env):
             #print(self.min_time)
             #print(action)
             #print(self.time_step)
-            self.state = self.estimate(self.om, mu = self.state[0], std = self.state[1]*self.state[0], 
+            mu, sig = self.estimate(self.om, mu = self.state[0], std = self.state[1]*self.state[0], 
                                     t = self.min_time*1e-3+action*self.time_step*1e-3, 
                                     rng_shot = self.rng_shot)
+            self.filter.update(mu)
+
+            self.state = [self.filter.filtered[-1], sig]
+
+
         plot_weights = False
         if plot_weights:
             plt.figure()

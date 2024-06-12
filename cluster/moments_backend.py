@@ -43,7 +43,8 @@ class Moments_estimation(Env):
                  penalty = -1, 
                  max_time = 100,
                  time_step = 1,
-                 min_time = 0):
+                 min_time = 0,
+                 filter):
         
         self.penalty = penalty
         self.om0 = om0
@@ -54,6 +55,7 @@ class Moments_estimation(Env):
         self.noise.set_x(self.init_error*np.random.normal(0,1))
         self.noise.cs = cs
         self.om = self.noise.x + om0
+        self.filter = filter
         
 
         self.seed_shot = seed_shot
@@ -102,10 +104,7 @@ class Moments_estimation(Env):
        
 
         else:
-            #print(self.min_time+action*self.time_step)
-            #print(self.min_time)
-            #print(action)
-            #print(self.time_step)
+
             self.state = self.estimate(self.om, mu = self.state[0], std = self.state[1]*self.state[0], 
                                     t = self.min_time*1e-3+action*self.time_step*1e-3, 
                                     rng_shot = self.rng_shot)
