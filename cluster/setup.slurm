@@ -11,7 +11,8 @@
 
 
 # Source the Python virtual environment
-# source $HOME/user_guide_tutorials/first_python_job/python_test_venv/bin/activate
+
+source /data1/krzywdaja/test_env
 echo "[$SHELL] #### Starting Python test"
 echo "[$SHELL] ## This is $SLURM_JOB_USER on $HOSTNAME and this job has the ID $SLURM_JOB_ID"
 # get the current working directory
