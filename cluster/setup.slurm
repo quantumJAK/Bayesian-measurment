@@ -3,7 +3,7 @@
 #SBATCH --output=%x_%j.out
 #SBATCH --mail-user="<your_email_address>"
 #SBATCH --mail-type="ALL"
-#SBATCH --mem=100M
+#SBATCH --mem=1000M
 #SBATCH --time=00:05:00
 #SBATCH --partition=testing
 #SBATCH --ntasks=1
