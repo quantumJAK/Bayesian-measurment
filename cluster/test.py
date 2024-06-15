@@ -1,7 +1,10 @@
 import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
-print("dupa")
+
+
+
+
 import moments_backend as est
 import importlib
 import noise as nois
@@ -95,6 +98,6 @@ for k in range(1):
         plt.plot(res.mus[k])
         plt.plot(res.oms[k])
 
-plt.save("random.png")
+plt.savefig("random.png")
 
 
