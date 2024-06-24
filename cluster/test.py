@@ -48,8 +48,6 @@ class data():
 
 noiseou = nois.OU_noise(sigma=2, gamma=1/1e4/2)
 
-
-
 om0 = 10
 env = est.Moments_estimation(length = 500, 
                                   om0 = om0, 

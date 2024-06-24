@@ -69,8 +69,10 @@ class Moments_estimation(Env):
         self.om0 = om0
         self.time_step = time_step
         self.min_time = min_time
-        self.init_error = 0.5
+        
+        
         self.noise = noise
+        self.init_error = self.noise.sigma
         self.noise.set_x(self.init_error*np.random.normal(0,1))
         self.noise.cs = cs
         self.om = self.noise.x + om0
@@ -84,7 +86,7 @@ class Moments_estimation(Env):
         self.estimation_length = length
         self.filter = filter
         self.observation_space = Box(low = np.array([0,0],dtype=np.float64), high = np.array([20,1],dtype=np.float64), shape = (2,),dtype=np.float64) 
-        self.action_space = Discrete(int((max_time-min_time)/time_step)+1)
+        self.action_space = Discrete(int((max_time-min_time)/time_step)+2)
         self.state = np.array([self.om0,self.init_error])
         self.state[1] /= self.state[0] 
 
@@ -112,7 +114,7 @@ class Moments_estimation(Env):
             if mu==0:
                 b = 1
             else:
-                t = 1/mu/2 # change np.pi in numerator to have different angle    
+                t = 1/mu/2. # change np.pi in numerator to have different angle    
                 b = self.rng_shot.binomial(1, 1/2+1/2*np.cos(2*np.pi*(self.om)*t))
             if b==0:
                 reward = 1
@@ -120,6 +122,11 @@ class Moments_estimation(Env):
                 reward = self.penalty
 
        
+        elif action == 1:
+            
+            self.state = [self.om0, self.noise.sigma/self.om0]
+            self.filter.update(self.om0)
+
 
         else:
             #print(self.min_time+action*self.time_step)
@@ -127,10 +134,10 @@ class Moments_estimation(Env):
             #print(action)
             #print(self.time_step)
             mu, sig = self.estimate(self.om, mu = self.state[0], std = self.state[1]*self.state[0], 
-                                    t = self.min_time*1e-3+action*self.time_step*1e-3, 
+                                    t = self.min_time*1e-3+(action-1)*self.time_step*1e-3, 
                                     rng_shot = self.rng_shot)
-            self.filter.update(mu)
 
+            self.filter.update(mu)
             self.state = [self.filter.filtered[-1], sig]
 
 
@@ -187,9 +194,11 @@ class Moments_estimation_c(Moments_estimation):
                  time_step = 1,
                  min_time = 0,
                  c= 10):
+        
+
         super().__init__(length, om0, noise, cs, seed_field, 
                          seed_shot, penalty, max_time, time_step,
-                           min_time)
+                           min_time, filter = Filter(5))
         self.action_space = Discrete(2)
         self.c = c
         
@@ -200,6 +209,10 @@ class Moments_estimation_c(Moments_estimation):
         x = 2*x-1
         mu, std = update_p(x, mu, std, t) 
         return mu, std/mu
+
+
+
+
 
 
 class two_qubit_game(Env):

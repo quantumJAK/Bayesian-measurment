@@ -284,12 +284,27 @@ def analyse_few_games4(results, string):
     rewards, actions, oms, mus, std = import_data(results)
     rewards_to_plot = np.zeros(rewards.shape)
     times = np.zeros(rewards.shape)
-    rewards_to_plot[rewards<0] = -1  #0 - success, #-1 -failure, times...
-    rewards_to_plot[rewards==1] = 1
+    resets = np.zeros(rewards.shape)
+
+
+    rewards_to_plot[rewards < 0] = -1  #0 - success, #-1 -failure, times...
+    rewards_to_plot[rewards == 1] = 1
+    rewards_to_plot[rewards==0] = None
+
+
     times[rewards==0] = actions[rewards==0]
     maxtime = np.max(times)
-    rewards_to_plot[rewards_to_plot==0] = None
-    times[times==0] = None
+    times[actions==1] = None
+    
+    times[rewards>0] = None
+    times[rewards<0] = None
+
+    #rewards_to_plot[rewards_to_plot==1] = None #reset
+    
+    
+    resets[rewards>-2] = None
+    resets[actions==1] = 1
+   
 
     #est_prob = np.sum(outcome==2,axis=1)/len(outcome[0,:])
     #check_prob = np.sum(outcome==4,axis=1)/len(outcome[0,:])
@@ -314,6 +329,7 @@ def analyse_few_games4(results, string):
     #colors = ["b","r","k","w"]
     d = axs[0].pcolormesh(rewards_to_plot, cmap=cmap_rewards)
     d2 = axs[0].pcolormesh(times, cmap=cmap_times,vmax = maxtime*2)
+    d3 = axs[0].pcolormesh(resets, cmap="Greens",vmax = 1)
     axs[0].grid(True)
     cb = plt.colorbar(d2, ax = axs[0], orientation="vertical")
     cb.set_label('Est. time')
