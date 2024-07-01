@@ -60,13 +60,25 @@ Leiden University, P.O. Box 9506, 2300 RA Leiden, The Netherlands}
 \maketitle
 
 \section{Introduction}
-\textbf{Intro} Uncontrolled drift of Hamiltonian parameters results in temporally correlated noise that affects quantum computation. It 
+\textbf{Intro} 
+[] Coupling between the qubit and environment is difficult to avoid. It result is the fluctuations of qubit Hamiltonian parameters, which detoriate its control and result in the decoherence mechanisms. For the latter, the effect of the noise strongly depends on its dynamics, in particulair the timescale on which it changes. While fast fluctuations of the environment are relevant for qubit relaxation (set by $T_1$ time), and uncorrelated dephasing ($T_2$ time), additional contribution to dephasing comes from the slow fluctuations of the environment and set $T_2^*$, which is often the limiting factor for the qubit operation.
 
-Such drift can be modeled as a unknown term in the Hamiltonian, which if averaged over realisations give rise to a decoherence. In many cases the noise is temporairly correlated, which means that the noise at time $t$ is correlated with the noise at time $t+\tau$. 
+[\textbf{Mitigation techniques}] For the dephasing limited qubits, $T_2$-like dephasing due to uncorrelated noise, gives rise to phase flip channel, which in principle can be mittigated by Quantum Error Correction protocols \cite{}. More practically for near-term devices, similair goal can be achived using Quantum Error Mitigation techniques \cite{}, at the cost of measurments overhead. To achive similair goal in $T_2^*$ limited devices, most common approach is to decorelate the noise using Pauli Twirling \cite{}, decouple the qubit from the environment using dynamical decoupling \cite{}, or use the dynamical error suppression techniques \cite{}. However, these methods are not always efficient, and can be costly in terms of resources. 
+
+[\textbf{Bayesian tracking}]
+Alternative approach to mittigate effects of slowely fluctuating paramters is to track their dynamics in real time and use feedback to counterpart their effects. The suitable approach is Bayesian, in which the knowladge about Hamiltonian parameters can be in principle updated using many single shots \cite{}. For constant and unknown parameters of the Hamiltonian, the optimal estimation methods of Hamiltonian learning has been developed \cite{} and implemented \cite{}. However for the fluctuating case a trade-off of between number of
 
 
 
-With temporairly correlated noise, fast fluctuations are crucial for the qubit operation, while slow fluctuations can be used for learning.
+Recently experimental demonstration of noise tracking for Brown \cite{} and Pink \cite{} noise has been demonstrated. 
+
+[\textbf{RL for qubit control}] In this work we propose a Reinforcement Learning (RL) approach to mitigate the effect of the temporairly correlated noise on the qubit operation. The main idea is to use the slow fluctuations of the environment for learning, while the fast fluctuations are crucial for the qubit operation. The learning is done by the agent, that is responsible for the qubit control, and is based on the Bayesian estimation of the noise. The agent is trained to allocate the resources between the Bayesian estimation and the qubit operation, in order to maximize the qubit performance. The performance is measured by the qubit fidelity, which is the probability of the qubit to be in the desired state. 
+
+
+[Spin qubits] In spin qubits the relaxation time is orders of magnitude larger than dephasing time, due to small dipole moment of the two spin states \cite{}. For the dephasing the main contribution comes from the fluctuations of magnetic and electric fields, that are used to manipulate the qubit. 
+
+
+
 
 
 
