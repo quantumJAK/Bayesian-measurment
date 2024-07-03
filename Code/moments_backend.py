@@ -56,14 +56,15 @@ def J(eps):
 
 class Moments_estimation(Env):
     def __init__(self, length, om0, 
-                 noise, cs,
+                 noise,buffer_size,
                  seed_field=None, 
                  seed_shot = None, 
                  penalty = -1, 
                  max_time = 100,
                  time_step = 1,
-                 min_time = 0, 
-                 filter = None):
+                 min_time = 1, 
+                 filter = None
+                 ):
         
         self.penalty = penalty
         self.om0 = om0
@@ -74,7 +75,6 @@ class Moments_estimation(Env):
         self.noise = noise
         self.init_error = self.noise.sigma
         self.noise.set_x(self.init_error*np.random.normal(0,1))
-        self.noise.cs = cs
         self.om = self.noise.x + om0
         self.mu_history = []
 
@@ -85,10 +85,16 @@ class Moments_estimation(Env):
         self.estimaiton_length0 = length
         self.estimation_length = length
         self.filter = filter
-        self.observation_space = Box(low = np.array([0,0],dtype=np.float64), high = np.array([20,1],dtype=np.float64), shape = (2,),dtype=np.float64) 
-        self.action_space = Discrete(int((max_time-min_time)/time_step)+2)
-        self.state = np.array([self.om0,self.init_error])
-        self.state[1] /= self.state[0] 
+        self.buffer_size = buffer_size
+        self.observation_space = Box(low = np.array([[0]*self.buffer_size,[0]*self.buffer_size],dtype=np.float64), 
+                                     high = np.array([[30]*self.buffer_size,[2
+                                     ]*self.buffer_size],dtype=np.float64), shape = (2,self.buffer_size),dtype=np.float64) 
+        
+        
+        self.action_space = MultiDiscrete([int((max_time-min_time)/time_step)+1, 20])
+        
+        self.state = np.array([[self.om0]*self.buffer_size,[self.init_error]*self.buffer_size], dtype=np.float64)
+        self.state[1,:]/=self.state[0,:]
 
 
 
@@ -108,9 +114,9 @@ class Moments_estimation(Env):
         b = None
         #plt.figure()
         #plt.plot(self.freq_grid, self.weigths)
-
-        mu = self.state[0]
-        if action == 0:
+        
+        mu = self.state[0,-1]
+        if action[0] == 0:
             if mu==0:
                 b = 1
             else:
@@ -120,25 +126,26 @@ class Moments_estimation(Env):
                 reward = 1
             else:
                 reward = self.penalty
-
        
-        elif action == 1:
-            
-            self.state = [self.om0, self.noise.sigma/self.om0]
-            self.filter.update(self.om0)
-
-
         else:
+
+
             #print(self.min_time+action*self.time_step)
             #print(self.min_time)
             #print(action)
             #print(self.time_step)
-            mu, sig = self.estimate(self.om, mu = self.state[0], std = self.state[1]*self.state[0], 
-                                    t = self.min_time*1e-3+(action-1)*self.time_step*1e-3, 
-                                    rng_shot = self.rng_shot)
-
+            #print("pre",self.state[1,-1], self.state[0,-1])
+            mu, sig = self.estimate(self.om, mu = self.state[0,-1], std = self.state[1,-1]*self.state[0,-1], 
+                                    t = self.min_time*1e-3 + action[0]*self.time_step*1e-3, rng_shot = self.rng_shot)
+            #print("post",self.om,self.state[1,-1], self.state[0,-1])
             self.filter.update(mu)
-            self.state = [self.filter.filtered[-1], sig]
+
+            # push all elements of the matrix by on index
+            self.state[:,:-1] = self.state[:,1:] #push by one index
+            self.state[0,-1] = self.filter.filtered[-1]
+            self.state[1,-1] = sig
+        
+        self.state[1, -1] += np.abs(action[1])*0.005
 
 
         plot_weights = False
@@ -147,8 +154,8 @@ class Moments_estimation(Env):
             grid = np.linspace(0,100,201)
             plt.plot(grid, get_gauss(grid, self.state))
 
-        self.state = diffuse_state(dt = 1, mu = self.state[0], 
-                                   std = self.state[1]*self.state[0], noise = self.noise)
+        #self.state = diffuse_state(dt = 1, mu = self.state[0], 
+        #                           std = self.state[1]*self.state[0], noise = self.noise)
         if plot_weights:
             plt.plot(grid, get_gauss(grid, self.state))
             plt.vlines(np.abs(self.om),0,1,"k")
@@ -178,7 +185,11 @@ class Moments_estimation(Env):
 
         self.noise.set_x(self.init_error*np.random.normal(0,1))
         self.om = self.noise.x + self.om0
-        self.state = [self.om0,self.init_error/self.om]
+
+        self.state = np.array([[self.om0]*self.buffer_size,[self.init_error]*self.buffer_size], dtype=np.float64)
+
+        self.state[1,:]/=self.state[0,:]
+
         self.estimation_length = self.estimaiton_length0
         info = {"om":self.om}
 

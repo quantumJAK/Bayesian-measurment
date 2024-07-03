@@ -61,13 +61,13 @@ class game():
 
                 n_state, reward, done, _, info = env.step(action)
                 
-                self.mus[episode,k] = n_state[0]
-                self.stds[episode,k] = n_state[1]
+                self.mus[episode,k] = n_state[0,-1]
+                self.stds[episode,k] = n_state[1,-1]
                 self.rewards[episode,k] = reward
             
                 #check if action is a array or a in
                 
-                self.actions[episode,k] = action
+                self.actions[episode,k] = action[0]
                 self.oms[episode,k] = info['om']
                 k = k+1
 
