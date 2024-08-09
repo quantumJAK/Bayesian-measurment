@@ -39,6 +39,7 @@ class game():
         self.rewards = np.zeros((episodes, estimation_length))
         self.stds = np.zeros((episodes, estimation_length))
         self.actions = np.zeros((episodes, estimation_length))
+        self.doms = np.zeros((episodes, estimation_length))
         self.mus = np.zeros((episodes, estimation_length))
         self.oms = np.zeros((episodes, estimation_length))
         self.play(episodes, env, policy, model, **kwargs)
@@ -52,7 +53,6 @@ class game():
             while not done:
                 if model:
                     action,_ = model.predict(n_state)
-                    
                 elif policy:
                     action = policy(k,n_state, **kwargs)
                     single_action = True
@@ -68,6 +68,7 @@ class game():
                 #check if action is a array or a in
                 
                 self.actions[episode,k] = action[0]
+                self.doms[episode,k] = action[1]
                 self.oms[episode,k] = info['om']
                 k = k+1
 

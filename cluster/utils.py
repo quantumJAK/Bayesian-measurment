@@ -377,7 +377,7 @@ def analyse_few_games4(results, string):
     plt.xlabel("Consequtive shots (time)")
     plt.ylabel("Repetitions")
 
-
+    plt.savefig(string)
 
 
 def analyse_decisions(results, string):
@@ -395,12 +395,19 @@ def analyse_decisions(results, string):
     y = std.flatten()
     x = mus.flatten()
     z = y
+    stringout = ""
+    stringout += "Probability of estimation, success, failing, success given flip \n"
+    stringout += str(np.sum(outcome==2)/len(outcome.flatten())) + ","
+    stringout += str(np.sum(outcome==1)/len(outcome.flatten())) + ","
+    stringout += str(np.sum(outcome==0)/len(outcome.flatten())) + ","
+    stringout += str(np.sum(outcome==1)/np.sum(outcome<2))
 
-    print("Probability of estimation: ", np.sum(outcome==2)/len(outcome.flatten()))
-    print("Probability of success: ", np.sum(outcome==1)/len(outcome.flatten()))
-    print("Probability of failing: ", np.sum(outcome==0)/len(outcome.flatten()))
-    
-    print("Probability of success given flip: ", np.sum(outcome==1)/np.sum(outcome<2))
+
+    #save string as txt
+    with open(string+"stats.csv", "w") as text_file:
+        text_file.write(stringout)
+
+
 
 
 
@@ -412,7 +419,7 @@ def analyse_decisions(results, string):
     plt.grid()
     plt.yscale("log")
 
-    plt.savefig("figures/decisions_"+str(string)+".png")
+    plt.savefig(string+"A.png")
     
     plt.figure()
     plt.hist(x[np.where(c==0)],color="b", bins = 100, alpha=0.6, density=True)
@@ -420,15 +427,14 @@ def analyse_decisions(results, string):
     plt.hist(x[np.where(c==2)],color="k", bins = 100,alpha=0.6, density=True)
     plt.hist(x[np.where(c==4)],color="g", bins = 100,alpha=0.6, density=True)
     plt.xlabel("Estimated om $\mu$")
-    plt.savefig("figures/histx_"+str(string)+".png")
+    plt.savefig(string+"B.png")
     plt.figure()
     plt.hist(z[np.where(c==0)],color="b",bins = 100,alpha=0.6, density=True)
     plt.hist(z[np.where(c==1)],color="r",bins = 100,alpha=0.6, density=True)
     plt.hist(z[np.where(c==2)],color="k", bins = 100,alpha=0.6, density=True)
     plt.hist(z[np.where(c==4)],color="g", bins = 100,alpha=0.6, density=True)
     plt.xlabel("Estimated $\sigma$")
-    plt.savefig("figures/histy_"+str(string)+".png")
-
+    plt.savefig(string+"C.png")
 
 
 def analyse_time(results, string):
@@ -480,9 +486,27 @@ def analyse_time(results, string):
             filtr = (y>bin0) * (y < bins[1][n+1])
             times.append(c[filtr])
     ax[3].clear()
+    plt.savefig(string)
     #ax[3].violinplot(times, showmeans=True)
     
 
+def plot_learning_curve(path):
+    #load monitor csv using numpy
 
+    npzfile = np.load(path+"evaluations.npz")
+    # extract the two arrays
+    x = npzfile['results']
+
+    avgs = np.average(x,axis=1)
+    stds = np.std(x, axis=1)
+    #plot the data
+    plt.errorbar(range(len(avgs)), avgs, yerr=stds)
+    plt.plot(range(len(avgs)),moving_average(avgs, 4))
+    plt.xlabel("Number of steps")
+    plt.ylabel("Reward")
+    plt.savefig(path+"learning_curve.png")
+
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'same') / w
 
     

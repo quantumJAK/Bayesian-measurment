@@ -20,6 +20,25 @@ def update_p(x, mu, std, t):
 def get_gauss(x, state):
     return 1/np.sqrt(2*np.pi*state[1]**2)*np.exp(-(x-state[0])**2/(2*state[1]**2))
 
+class Filter():
+    def __init__(self, N):
+        self.N = N
+        self.raw = []
+        self.filtered = []
+
+    def update(self, mu):
+        self.raw.append(mu)
+        self.filtered.append(mu)
+        return mu
+    
+class Moving_average_filter(Filter):
+    def update(self, mu):
+        self.raw.append(mu)
+        if len(self.raw)<self.N:
+            self.filtered.append(np.average(self.raw))
+        else:
+            self.filtered.append(self.filtered[-1] + (self.raw[-1] - self.raw[-self.N])/self.N)
+        return self.filtered[-1]
 
 def diffuse_state(dt, mu, std, noise):
     mu = noise.update_mu(dt, mu, std)
@@ -37,24 +56,30 @@ def J(eps):
 
 class Moments_estimation(Env):
     def __init__(self, length, om0, 
-                 noise, cs,
+                 noise,buffer_size,
                  seed_field=None, 
                  seed_shot = None, 
                  penalty = -1, 
                  max_time = 100,
                  time_step = 1,
-                 min_time = 0):
+                 min_time = 1, 
+                 filter = Filter(1),
+                 std_step = 0.005,
+                 mu_step = 0.1,
+                 ):
         
         self.penalty = penalty
         self.om0 = om0
         self.time_step = time_step
         self.min_time = min_time
-        self.init_error = 0.5
-        self.noise = noise
-        self.noise.set_x(self.init_error*np.random.normal(0,1))
-        self.noise.cs = cs
-        self.om = self.noise.x + om0
+        self.std_step = std_step
+        self.mu_step = mu_step
         
+        self.noise = noise
+        self.init_error = self.noise.sigma
+        self.noise.set_x(self.init_error*np.random.normal(0,1))
+        self.om = self.noise.x + om0
+        self.mu_history = []
 
         self.seed_shot = seed_shot
         self.seed_field = seed_field
@@ -62,11 +87,15 @@ class Moments_estimation(Env):
         self.rng_field = np.random.default_rng(seed_field)
         self.estimaiton_length0 = length
         self.estimation_length = length
-
-        self.observation_space = Box(low = np.array([0,0],dtype=np.float64), high = np.array([20,1],dtype=np.float64), shape = (2,),dtype=np.float64) 
-        self.action_space = Discrete(int((max_time-min_time)/time_step)+1)
-        self.state = np.array([self.om0,self.init_error])
-        self.state[1] /= self.state[0] 
+        self.filter = filter
+        self.buffer_size = buffer_size
+        self.observation_space = Box(low = np.array([0]*2*self.buffer_size,dtype=np.float64), 
+                                     high = np.array([30,2]*self.buffer_size,dtype=np.float64), shape = (2*self.buffer_size,),dtype=np.float64) 
+        
+        
+        self.action_space = MultiDiscrete([int((max_time-min_time)/time_step)+2, 10])
+        
+        self.state = np.array([self.om0,self.init_error/self.om0]*buffer_size, dtype=np.float64)
 
 
 
@@ -86,34 +115,48 @@ class Moments_estimation(Env):
         b = None
         #plt.figure()
         #plt.plot(self.freq_grid, self.weigths)
-
-        mu = self.state[0]
-        if action == 0:
+        mu = self.state[-2]
+        if action[0] == 0:
             if mu==0:
                 b = 1
             else:
-                t = 1/mu/2 # change np.pi in numerator to have different angle    
+                t = 1/mu/2. # change np.pi in numerator to have different angle    
                 b = self.rng_shot.binomial(1, 1/2+1/2*np.cos(2*np.pi*(self.om)*t))
             if b==0:
                 reward = 1
             else:
                 reward = self.penalty
-
        
-
         else:
 
-            self.state = self.estimate(self.om, mu = self.state[0], std = self.state[1]*self.state[0], 
-                                    t = self.min_time*1e-3+action*self.time_step*1e-3, 
-                                    rng_shot = self.rng_shot)
+
+            #print(self.min_time+action*self.time_step)
+            #print(self.min_time)
+            #print(action)
+            #print(self.time_step)
+            #print("pre",self.state[1,-1], self.state[0,-1])
+            mu, sig = self.estimate(self.om, mu = self.state[-2], std = self.state[-1]*self.state[-2], 
+                                    t = self.min_time*1e-3 + action[0]*self.time_step*1e-3, rng_shot = self.rng_shot)
+            #print("post",self.om,self.state[1,-1], self.state[0,-1])
+            self.filter.update(mu)
+
+            # push all elements of the matrix by on index
+            self.state[:-2] = self.state[2:] #push by two indices
+            self.state[-2] = self.filter.filtered[-1]
+            self.state[-1] = sig
+        
+        self.state[-1] += np.abs(action[1])*self.std_step
+        #self.state[0, -1] += np.abs(2-action[2])*self.mu_step
+
+
         plot_weights = False
         if plot_weights:
             plt.figure()
             grid = np.linspace(0,100,201)
             plt.plot(grid, get_gauss(grid, self.state))
 
-        self.state = diffuse_state(dt = 1, mu = self.state[0], 
-                                   std = self.state[1]*self.state[0], noise = self.noise)
+        #self.state = diffuse_state(dt = 1, mu = self.state[0], 
+        #                           std = self.state[1]*self.state[0], noise = self.noise)
         if plot_weights:
             plt.plot(grid, get_gauss(grid, self.state))
             plt.vlines(np.abs(self.om),0,1,"k")
@@ -143,7 +186,11 @@ class Moments_estimation(Env):
 
         self.noise.set_x(self.init_error*np.random.normal(0,1))
         self.om = self.noise.x + self.om0
-        self.state = [self.om0,self.init_error/self.om]
+
+        self.state = np.array([self.om0,self.init_error/self.om0]*self.buffer_size, dtype=np.float64)
+
+
+
         self.estimation_length = self.estimaiton_length0
         info = {"om":self.om}
 
@@ -159,9 +206,11 @@ class Moments_estimation_c(Moments_estimation):
                  time_step = 1,
                  min_time = 0,
                  c= 10):
+        
+
         super().__init__(length, om0, noise, cs, seed_field, 
                          seed_shot, penalty, max_time, time_step,
-                           min_time)
+                           min_time, filter = Filter(5))
         self.action_space = Discrete(2)
         self.c = c
         
@@ -172,6 +221,10 @@ class Moments_estimation_c(Moments_estimation):
         x = 2*x-1
         mu, std = update_p(x, mu, std, t) 
         return mu, std/mu
+
+
+
+
 
 
 class two_qubit_game(Env):

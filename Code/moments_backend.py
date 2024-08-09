@@ -63,14 +63,17 @@ class Moments_estimation(Env):
                  max_time = 100,
                  time_step = 1,
                  min_time = 1, 
-                 filter = None
+                 filter = Filter(1),
+                 std_step = 0.005,
+                 mu_step = 0.1,
                  ):
         
         self.penalty = penalty
         self.om0 = om0
         self.time_step = time_step
         self.min_time = min_time
-        
+        self.std_step = std_step
+        self.mu_step = mu_step
         
         self.noise = noise
         self.init_error = self.noise.sigma
@@ -86,15 +89,13 @@ class Moments_estimation(Env):
         self.estimation_length = length
         self.filter = filter
         self.buffer_size = buffer_size
-        self.observation_space = Box(low = np.array([[0]*self.buffer_size,[0]*self.buffer_size],dtype=np.float64), 
-                                     high = np.array([[30]*self.buffer_size,[2
-                                     ]*self.buffer_size],dtype=np.float64), shape = (2,self.buffer_size),dtype=np.float64) 
+        self.observation_space = Box(low = np.array([0]*2*self.buffer_size,dtype=np.float64), 
+                                     high = np.array([30,2]*self.buffer_size,dtype=np.float64), shape = (2*self.buffer_size,),dtype=np.float64) 
         
         
         self.action_space = MultiDiscrete([int((max_time-min_time)/time_step)+1, 20])
         
-        self.state = np.array([[self.om0]*self.buffer_size,[self.init_error]*self.buffer_size], dtype=np.float64)
-        self.state[1,:]/=self.state[0,:]
+        self.state = np.array([self.om0,self.init_error/self.om0]*buffer_size, dtype=np.float64)
 
 
 
@@ -114,8 +115,7 @@ class Moments_estimation(Env):
         b = None
         #plt.figure()
         #plt.plot(self.freq_grid, self.weigths)
-        
-        mu = self.state[0,-1]
+        mu = self.state[-2]
         if action[0] == 0:
             if mu==0:
                 b = 1
@@ -135,17 +135,18 @@ class Moments_estimation(Env):
             #print(action)
             #print(self.time_step)
             #print("pre",self.state[1,-1], self.state[0,-1])
-            mu, sig = self.estimate(self.om, mu = self.state[0,-1], std = self.state[1,-1]*self.state[0,-1], 
+            mu, sig = self.estimate(self.om, mu = self.state[-2], std = self.state[-1]*self.state[-2], 
                                     t = self.min_time*1e-3 + action[0]*self.time_step*1e-3, rng_shot = self.rng_shot)
             #print("post",self.om,self.state[1,-1], self.state[0,-1])
             self.filter.update(mu)
 
             # push all elements of the matrix by on index
-            self.state[:,:-1] = self.state[:,1:] #push by one index
-            self.state[0,-1] = self.filter.filtered[-1]
-            self.state[1,-1] = sig
+            self.state[:-2] = self.state[2:] #push by two indices
+            self.state[-2] = self.filter.filtered[-1]
+            self.state[-1] = sig
         
-        self.state[1, -1] += np.abs(action[1])*0.005
+        self.state[-1] += np.abs(action[1])*self.std_step
+        #self.state[0, -1] += np.abs(2-action[2])*self.mu_step
 
 
         plot_weights = False
@@ -186,9 +187,9 @@ class Moments_estimation(Env):
         self.noise.set_x(self.init_error*np.random.normal(0,1))
         self.om = self.noise.x + self.om0
 
-        self.state = np.array([[self.om0]*self.buffer_size,[self.init_error]*self.buffer_size], dtype=np.float64)
+        self.state = np.array([self.om0,self.init_error/self.om0]*self.buffer_size, dtype=np.float64)
 
-        self.state[1,:]/=self.state[0,:]
+
 
         self.estimation_length = self.estimaiton_length0
         info = {"om":self.om}
