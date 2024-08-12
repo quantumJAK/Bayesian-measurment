@@ -61,36 +61,22 @@ Leiden University, P.O. Box 9506, 2300 RA Leiden, The Netherlands}
 
 \section{Introduction}
 \textbf{Intro} 
-[] Coupling between the qubit and its environment is difficult to avoid. It result are the fluctuations of qubit Hamiltonian parameters, which detoriate its control and cause decoherence mechanisms. The effect of the noise strongly depends on its dynamics, in particulair the timescale on which it changes. While fast fluctuations of the environment are relevant for qubit relaxation (set by $T_1$ time), and uncorrelated dephasing ($T_2$ time), additional contribution to dephasing comes from the slow fluctuations of the environment. Related timescale $T_2^*$ is often the limiting factor of the operation of many solid state qubits.
+Coupling between the qubit and its environment often leads to the fluctuations of qubit Hamiltonian parameters, which detoriate its control and cause decoherence mechanisms. While fast fluctuations causes qubit relaxation (related to $T_1$ time), and uncorrelated dephasing ($T_2$ time), many solid-state devices are limited by the slow fluctuations of the Hamiltonian parameters. 
 
-[\textbf{Mitigation techniques}] The $T_2$-like dephasing due to uncorrelated noise, gives rise to phase flip channel, which in principle can be mittigated by Quantum Error Correction protocols \cite{}. More practically for near-term devices, similair goal can be achived using Quantum Error Mitigation techniques \cite{}, at the cost of measurments overhead. To achive similair goal in $T_2^*$ limited devices, most common approach is to decouple the qubit from the environment using dynamical decoupling \cite{}, or apply QEM after decorelating the noise through Pauli Twirling \cite{}. However, these methods are not always efficient, and can be costly in terms of resources. 
+[\textbf{Mitigation techniques}] Treating such temporairly correlated noise with standard Quantum Error Correction \cite{} and Quantum Error Mitigation techniques \cite{} is not straightforward, and often requires additional decorelating techniques, i.e. dynamical decoupling \cite{}, or Pauli Twirling \cite{}. However, these methods are not always efficient, and can be costly in terms of resources. Alternative approach to mittigate effects of slowely fluctuating parameters, is to track and correct them in real-time.
 
-[\textbf{Bayesian tracking}]
-Alternative approach to mittigate effects of slowely fluctuating paramters is to track and correct them in real-time. Tracking can be realised in Bayesian approach, in which the knowladge about Hamiltonian parameters is updated from the single shot of experiment with known probability distribution \cite{}. For constant and unknown parameters, the optimal estimation methods of Hamiltonian learning has been developed \cite{} and implemented \cite{}. However tracking time-dependent parameters poses additional constraints, as the estimation time cannot be longer than typical timescale at which the estimated paramter remains constant. This presents a trade-off between larger number of estimation shots (better precision) and worse accuracy due to changes in estimated parameter during estimation period. 
+Tracking of Hamiltonian parameters can be realised by directly measuring the drift[] or using Bayesian approach \cite{}. In the latter, the knowladge about them is updated from shot data of an experiment with known probability distribution \cite{}, which has proven to improve performance of spin qubits affected by brown \cite{} and pink (1/f) noise \cite{}. Altough for constant and unknown parameters, the optimal estimation methods of Hamiltonian learning has been developed \cite{} and implemented \cite{}, for dynamical case optimal strategy depends on the interplay between noise dynamics and data aquistion rate. For instance there exist a natural tension between increasing precision by more estimation shots and decreasing accuracy due to changes in estimated parameter during estimation period.
 
-[\textbf{Strategy}]
-Additional challange comes from the fact that the resources used for tracking the noise are decreasing shot budget for the qubit operation, and increases shot noise in the computation 
+On the other hand investing significant part of shot-budget in estimation, is naturally limiting resources for running any meaningful quantum algorithm. Therefore, the optimal strategy for the qubit control is to allocate resources between the estimation and the qubit operation, in order to maximize the number of clean runs of the algorithm. This setup naturally resamples exploration (estimation) and exploitation (qubit operation) trade-off, which is a typical problem in Reinforcement Learning (RL) \cite{}. 
 
-[\textbf{Spin qubits}] In spin qubits the relaxation time is orders of magnitude larger than dephasing time, due to small dipole moment of the two spin states \cite{}. For the dephasing the main contribution comes from the fluctuations of magnetic and electric fields, that are used to manipulate the qubit. 
+In this work we design the algorithms for efficient resource allocation between the Bayesian estimation and the qubit operation, in order to maximize the qubit performance. As a proof-of-principle algorithm, that could be also used for the qubit callibration, we concentrate here on the phase-flip gate, i.e. dynamically adjust waiting time to realise a $\pi$-rotation around the rotation axis affected by low-frequency noise. We develop two algorithms, that are on the oposite spectrum of complexity. In the first one, we map the problem of flipping phase into a multi-arm bandit, where arms are the waiting time. The agent is responsible for choosing the arm, that maximizes the succesful flips in a finite time. In the latter approach we set up full Reinforcement Learning, in which the agent has access to the results of Bayesian Estimation and can choose the estimation strategy, as well as dynamically allocate resources between the estimation and the qubit operation.
 
-[\textbf{Strategies}
-]
-
-
-[\textbf{RL for qubit control}] In this work we propose a Reinforcement Learning (RL) approach to mitigate the effect of the temporairly correlated noise on the qubit operation. The main idea is to use the slow fluctuations of the environment for learning, while the fast fluctuations are crucial for the qubit operation. The learning is done by the agent, that is responsible for the qubit control, and is based on the Bayesian estimation of the noise. The agent is trained to allocate the resources between the Bayesian estimation and the qubit operation, in order to maximize the qubit performance. The performance is measured by the qubit fidelity, which is the probability of the qubit to be in the desired state. 
-
-[\textbf{Spin qubits}] In spin qubits the relaxation time is orders of magnitude larger than dephasing time, due to small dipole moment of the two spin states \cite{}. For the dephasing the main contribution comes from the fluctuations of magnetic and electric fields, that are used to manipulate the qubit. 
-
-[\textbf{Strategies}
-]
-Recently experimental demonstration of noise tracking for Brown \cite{} and Pink \cite{} noise has been demonstrated. 
-
-[\textbf{RL for qubit control}] In this work we propose a Reinforcement Learning (RL) approach to mitigate the effect of the temporairly correlated noise on the qubit operation. The main idea is to use the slow fluctuations of the environment for learning, while the fast fluctuations are crucial for the qubit operation. The learning is done by the agent, that is responsible for the qubit control, and is based on the Bayesian estimation of the noise. The agent is trained to allocate the resources between the Bayesian estimation and the qubit operation, in order to maximize the qubit performance. The performance is measured by the qubit fidelity, which is the probability of the qubit to be in the desired state. 
+\begin{figure}
+\includegraphics*[keyvals]{imagefile}
+\end{figure}
 
 
-[Spin qubits] In spin qubits the relaxation time is orders of magnitude larger than dephasing time, due to small dipole moment of the two spin states \cite{}. For the dephasing the main contribution comes from the fluctuations of magnetic and electric fields, that are used to manipulate the qubit. 
-
-
+\section{Model}
 
 
 

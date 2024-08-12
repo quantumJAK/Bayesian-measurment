@@ -50,7 +50,7 @@ def analyse_few_games(results, string):
     dmu_plot = axs[1].pcolormesh(dmu, cmap="Reds", vmin=0, vmax=np.max(np.abs(dmu)))
 
     cb = plt.colorbar(dmu_plot, ax = axs[1], orientation="vertical")
-    cb.set_label('Estimate $\mu$')
+    cb.set_label(r'Estimate $\mu$')
     plt.tight_layout()
     plt.grid()
 
@@ -157,7 +157,7 @@ def analyse_few_games2(results, string):
     dmu_plot = axs[3].pcolormesh(dmu, cmap="bwr", vmin=-np.max(np.abs(dmu)), vmax=np.max(np.abs(dmu)))
 
     cb = plt.colorbar(dmu_plot, ax = axs[3], orientation="vertical")
-    cb.set_label('Real $\omega$')
+    cb.set_label(r'Real $\omega$')
     plt.tight_layout()
     plt.grid()
 
@@ -284,27 +284,12 @@ def analyse_few_games4(results, string):
     rewards, actions, oms, mus, std = import_data(results)
     rewards_to_plot = np.zeros(rewards.shape)
     times = np.zeros(rewards.shape)
-    resets = np.zeros(rewards.shape)
-
-
-    rewards_to_plot[rewards < 0] = -1  #0 - success, #-1 -failure, times...
-    rewards_to_plot[rewards == 1] = 1
-    rewards_to_plot[rewards==0] = None
-
-
+    rewards_to_plot[rewards<0] = -1  #0 - success, #-1 -failure, times...
+    rewards_to_plot[rewards==1] = 1
     times[rewards==0] = actions[rewards==0]
     maxtime = np.max(times)
-    times[actions==1] = None
-    
-    times[rewards>0] = None
-    times[rewards<0] = None
-
-    #rewards_to_plot[rewards_to_plot==1] = None #reset
-    
-    
-    resets[rewards>-2] = None
-    resets[actions==1] = 1
-   
+    rewards_to_plot[rewards_to_plot==0] = None
+    times[times==0] = None
 
     #est_prob = np.sum(outcome==2,axis=1)/len(outcome[0,:])
     #check_prob = np.sum(outcome==4,axis=1)/len(outcome[0,:])
@@ -329,7 +314,6 @@ def analyse_few_games4(results, string):
     #colors = ["b","r","k","w"]
     d = axs[0].pcolormesh(rewards_to_plot, cmap=cmap_rewards)
     d2 = axs[0].pcolormesh(times, cmap=cmap_times,vmax = maxtime*2)
-    d3 = axs[0].pcolormesh(resets, cmap="Greens",vmax = 1)
     axs[0].grid(True)
     cb = plt.colorbar(d2, ax = axs[0], orientation="vertical")
     cb.set_label('Est. time')
@@ -393,7 +377,7 @@ def analyse_few_games4(results, string):
     plt.xlabel("Consequtive shots (time)")
     plt.ylabel("Repetitions")
 
-
+    plt.savefig(string)
 
 
 def analyse_decisions(results, string):
@@ -411,12 +395,20 @@ def analyse_decisions(results, string):
     y = std.flatten()
     x = mus.flatten()
     z = y
+    stringout = ""
+    stringout += "Probability of estimation, success, failing, success given flip, reward \n"
+    stringout += str(np.sum(outcome==2)/len(outcome.flatten())) + ","
+    stringout += str(np.sum(outcome==1)/len(outcome.flatten())) + ","
+    stringout += str(np.sum(outcome==0)/len(outcome.flatten())) + ","
+    stringout += str(np.sum(outcome==1)/np.sum(outcome<2))+ ","
+    stringout += str(np.average(np.sum(rewards,axis=1)))+ r'$ \pm $' + str(np.std(np.sum(rewards,axis=1)))
 
-    print("Probability of estimation: ", np.sum(outcome==2)/len(outcome.flatten()))
-    print("Probability of success: ", np.sum(outcome==1)/len(outcome.flatten()))
-    print("Probability of failing: ", np.sum(outcome==0)/len(outcome.flatten()))
-    
-    print("Probability of success given flip: ", np.sum(outcome==1)/np.sum(outcome<2))
+
+    #save string as txt
+    with open(string+"stats.csv", "w") as text_file:
+        text_file.write(stringout)
+
+
 
 
 
@@ -428,7 +420,7 @@ def analyse_decisions(results, string):
     plt.grid()
     plt.yscale("log")
 
-    plt.savefig("figures/decisions_"+str(string)+".png")
+    plt.savefig(string+"A.png")
     
     plt.figure()
     plt.hist(x[np.where(c==0)],color="b", bins = 100, alpha=0.6, density=True)
@@ -436,15 +428,14 @@ def analyse_decisions(results, string):
     plt.hist(x[np.where(c==2)],color="k", bins = 100,alpha=0.6, density=True)
     plt.hist(x[np.where(c==4)],color="g", bins = 100,alpha=0.6, density=True)
     plt.xlabel("Estimated om $\mu$")
-    plt.savefig("figures/histx_"+str(string)+".png")
+    plt.savefig(string+"B.png")
     plt.figure()
     plt.hist(z[np.where(c==0)],color="b",bins = 100,alpha=0.6, density=True)
     plt.hist(z[np.where(c==1)],color="r",bins = 100,alpha=0.6, density=True)
     plt.hist(z[np.where(c==2)],color="k", bins = 100,alpha=0.6, density=True)
     plt.hist(z[np.where(c==4)],color="g", bins = 100,alpha=0.6, density=True)
     plt.xlabel("Estimated $\sigma$")
-    plt.savefig("figures/histy_"+str(string)+".png")
-
+    plt.savefig(string+"C.png")
 
 
 def analyse_time(results, string):
@@ -496,9 +487,27 @@ def analyse_time(results, string):
             filtr = (y>bin0) * (y < bins[1][n+1])
             times.append(c[filtr])
     ax[3].clear()
+    plt.savefig(string)
     #ax[3].violinplot(times, showmeans=True)
     
 
+def plot_learning_curve(path):
+    #load monitor csv using numpy
 
+    npzfile = np.load(path+"evaluations.npz")
+    # extract the two arrays
+    x = npzfile['results']
+
+    avgs = np.average(x,axis=1)
+    stds = np.std(x, axis=1)
+    #plot the data
+    plt.errorbar(range(len(avgs)), avgs, yerr=stds)
+    plt.plot(range(len(avgs)),moving_average(avgs, 4))
+    plt.xlabel("Number of steps")
+    plt.ylabel("Reward")
+    plt.savefig(path+"learning_curve.png")
+
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'same') / w
 
     
