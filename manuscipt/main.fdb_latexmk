@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex main"] 1732515823.81301 "main.aux" "main.bbl" "main" 1732515827.18893 0
-  "./mainNotes.bib" 1732515826.37509 104 4d8bb863c86f3d7b03a471e9d4707f34 ""
+["bibtex main"] 1732598708.89246 "main.aux" "main.bbl" "main" 1732598967.63885 0
+  "./mainNotes.bib" 1732598966.81186 104 4d8bb863c86f3d7b03a471e9d4707f34 ""
   "/usr/local/texlive/2024/texmf-dist/bibtex/bst/revtex/apsrev4-2.bst" 1601932770 69609 e9dea59f0e753ccda3ddc8f5806d846d ""
-  "main.aux" 1732515826.37337 1491 c0cb5b3ae91d016c60b278d0fdd614d4 "pdflatex"
+  "main.aux" 1732598966.81032 1789 411f984bae2ac67e130d9ab3a983fe09 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1732515824.18482 "/Users/krzywdaja/Documents/Repositories/Bayesian-ai-estimation/manuscipt/main.tex" "main.pdf" "main" 1732515827.18946 0
-  "/Users/krzywdaja/Documents/Repositories/Bayesian-ai-estimation/manuscipt/main.tex" 1732515819.81491 17669 1fec1407dc8663374944e0408fd9d17a ""
+["pdflatex"] 1732598965.04748 "/Users/krzywdaja/Documents/Repositories/Bayesian-ai-estimation/manuscipt/main.tex" "main.pdf" "main" 1732598967.63925 0
+  "/Users/krzywdaja/Documents/Repositories/Bayesian-ai-estimation/manuscipt/main.tex" 1732598964.62115 20701 afdbd288ea686c047f275e8e3891e748 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -78,6 +78,7 @@
   "/usr/local/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfbx0900.pfb" 1215737283 143961 201304b65f97bc643fbd0bcf0685d1fe ""
   "/usr/local/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfbx1200.pfb" 1215737283 140176 d4962f948b4cc0adf4d3dde77a128c95 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb" 1215737283 164227 3df942b4ff2124425d8fb1b6d3e01c7a ""
+  "/usr/local/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0900.pfb" 1215737283 149037 995a6f1e12c1d647b99b1cf55db78699 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfrm1000.pfb" 1215737283 138258 6525c253f16cededa14c7fd0da7f67b2 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfti0900.pfb" 1215737283 183673 6df73819bb3e1246a6315a4913a2d331 ""
   "/usr/local/texlive/2024/texmf-dist/tex/context/base/mkii/supp-pdf.mkii" 1461363279 71627 94eb9990bed73c364d7f53f960cc8c5b ""
@@ -214,10 +215,11 @@
   "/usr/local/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1729062734.12808 5467645 128b85b7cde5f5edc5cb7f1dd7ff8736 ""
   "/usr/local/texlive/2024/texmf-var/web2c/pdftex/pdflatex.fmt" 1729060836 8221444 b79057db77fca502095a8fc92b930eba ""
   "/usr/local/texlive/2024/texmf.cnf" 1710266656 577 e590dabc9e28c5b61546e15f63eebcdf ""
-  "main.aux" 1732515826.37337 1491 c0cb5b3ae91d016c60b278d0fdd614d4 "pdflatex"
-  "main.bbl" 1732515824.17773 1980 28c19e8c34138b62d4af8c2d0ed844b0 "bibtex main"
-  "main.out" 1732515826.37461 1398 47f59b9c1da52a3351e2cb2d4c1c2d6c "pdflatex"
-  "main.tex" 1732515819.81491 17669 1fec1407dc8663374944e0408fd9d17a ""
+  "main.aux" 1732598966.81032 1789 411f984bae2ac67e130d9ab3a983fe09 "pdflatex"
+  "main.bbl" 1732598709.12317 1980 28c19e8c34138b62d4af8c2d0ed844b0 "bibtex main"
+  "main.out" 1732598966.81152 1398 6b34713f5b2fd971e137ffd44316fd8e "pdflatex"
+  "main.tex" 1732598964.62115 20701 afdbd288ea686c047f275e8e3891e748 ""
+  "scheme_RL.pdf" 1731996656.4062 207645 6e1a637545cdf72ee1790669116fdfd6 ""
   (generated)
   "main.aux"
   "main.log"

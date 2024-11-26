@@ -131,6 +131,29 @@ Given the posterior distribution, the agent can adjust the control parameters to
 \end{equation}
 Such simple operation will allow us to generate the signal, that will be used for training the agent and evaluating its performance. 
 
+\subsection{Reinforcement Learning}
+The objective is to optimise the trade-off between the shots used for estimation an the shots used for qubit opration. During training the qubit operation is identified with the bit-flip, in view of generating the signal that can be used to evaluate the agent performance. The best policy is expected to maximize the fidelity of the qubit fllip, after the pi-pulse, and simultanously minimize the number of shots used for estimation. To achive this task we define the return to be maximized:
+\begin{equation}
+    R = \sum_{n=1}^{N} \gamma^{n-1} r_n,
+\end{equation}
+where $n$ enumerates shots, $r_n = 1$ if the flip is succesful, $r_n = -p$ when it fails, i.e. when the initial state is measured after executing pi-pulse. In each shot the agent decides between attempting a flip or using the shot to estimate, in case of which $r_n = 0$. The $\gamma$ is the discount factor, that allows to enhnce the importance of the near-term rewards. We use the finite horizon, i.e. the episode ends after $N$ shots, which allows to realize the trade-off between the estimation and the qubit operation, i.e. the always estimating agent will not be able to generate the non-zero return signal. 
+
+The agent state is given by the parameters of posterior distribution $s_n = (\mu_n,\sigma_n)$, which are updated using Eq. (XY) when the estimation action is choosen. The agent actions consist of $a_n = (\tau_n, \Delta \sigma_n)$ where $\tau_n=0$ stands for the qubit operation - the flip, and $\tau_n > 0$ stands for the estimation with probing time equal to $\tau_n$. When spin-flip action is picked the Bayesian update is not performed, to make the tracking policy suitable for more complex multi-qubit operations.
+
+To reflect experimental reality we use discrete grid of 200 logarithmically spaced probing times, that spreads four orders around the typical timescale, set by the average frequency $\omega_0$. After each operation or estimation the agent increases $\sigma$ by uncertainty factor $\Delta \sigma_n$, that on one hand takes into account field dynamics between the shots, but also allows for the rapid increase of uncertainty in case of losing track of the field. The scheme of the RL agent is presented in Fig. 1.
+
+The agent policy is given by the probability distribution $\pi(a_n|s_n)$, which is parametrised by the neural network. The agent is trained using the Proximal Policy Optimization (PPO) algorithm to enable learning in presence of stochastic environment []. We train the agent on simulated environment we consist of stochastic process $\omega(t)$, in the form of Ornstein-Uhlenbeck or 1/f noise processes, and for each action, the integral $\int_t^{t+\tau_n} \omega(t)$ entering Eq. [] is computed numerically for a given trajectory of $\omega(t)$. Each episode consists of $N=10^5$ shots, and uses indepedent trajectory of the stochastic process, with initial value normally distributed around $\omega_0$ with variance $\sigma_{\omega}^2$. The initial state of the agent is $\omega_0, \sigma_\omega$. The agent is trained for $10^6$ episodes, using batches of the size $10^2$ episodes.
+
+
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{scheme_RL.pdf}
+    \caption{The scheme of the RL agent. The agent state is updated after each shot, and the agent decides between the estimation and the qubit operation. The agent is trained using the PPO algorithm.}
+\end{figure}
+
+
 \subsection{Dephasing}
 Agent uncertainty or inaccuracy in the value of $\omega_n$ would result in over in under- or overrotation and lead to a decrease in the fidelity of qubit flip operation. According to agent best knowladge the $\pi$ pulse is realised by choosing the wainting time $\tau_n = \pi/\mu_n$, however the actual rotation angle is given by $\theta = \omega_n \tau_n = \pi \omega_n/\mu_n$, using which the average fidelity of the qubit flip yields
 \begin{equation}
@@ -162,15 +185,7 @@ however resulting average over $\omega$ is not straightforward to evaluate. Typi
 \end{equation}
 Note that in the limit of no tracking  the estimation error is given by variation of the field around average value, i.e. $\sigma_{\delta \mu}^2 =  \sigma_{\omega}^2$, while the temproal variation no longer contributes to an error, i.e. $\sigma_{\Delta\omega} = 0$, which together allows to reconstruct Eq. (10).
 
-FIGURE
 
-
-
-\subsection{Reinforcement Learning}
-STATE, ACTION, REWARD, PPO
-
-
-Any optimisaiton or a training requires a signal that can be used to evaluate performance of the agent. To achive this goal, as an operation we use $\pi$ pulse that flips the initial qubit state. Idea is, that with perfect knowladge and no noise, the qubit will be flipped with probability 1, which should reinfornce the agent policy. 
 
 \section{Metric, baselines and tests}
 
